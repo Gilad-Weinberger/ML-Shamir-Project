@@ -1,2 +1,2 @@
 # ML-Shamir-Project
-Machine Learning Project for Shamir Institute for Daniel Kusai
+Machine Learning Project with Daniel Kusai for Shamir Institute (Dr Lior Gur)
