@@ -4,4 +4,6 @@ final_data.csv
 
 # delete this later to upload final project:
 images/
+data/
+losses/
 current_data.csv

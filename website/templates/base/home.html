@@ -1,9 +1,41 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document</title>
+    <title>Image Upload</title>
+    <!-- Link to the compiled CSS file -->
+    <link rel="stylesheet" href="{% static 'css/base/home.css' %}" />
   </head>
-  <body></body>
+  <body>
+    <div class="container">
+      <h1>Upload Your Image</h1>
+      <div class="flex-container">
+        {% if prediction %}
+        <div class="alert">
+          Predicted:
+          <p class="number">{{ prediction }}</p>
+        </div>
+        {% endif %} {% if uploaded_image_url %}
+        <div class="uploaded-image">
+          <h2>Uploaded Image:</h2>
+          <img
+            src="{{ uploaded_image_url }}"
+            alt="Uploaded Image"
+            class="img-fluid"
+          />
+        </div>
+        {% endif %}
+
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="form-group">
+            {{ form.image.label_tag }} {{ form.image }}
+          </div>
+          <button type="submit" class="btn-primary">Upload</button>
+        </form>
+      </div>
+    </div>
+  </body>
 </html>
