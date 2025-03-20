@@ -10,74 +10,123 @@ from .forms import ImageUploadForm
 from django.apps import apps
 from django_tqdm import BaseCommand
 from tqdm import tqdm
+import matplotlib.pyplot as plt
+from torch.utils.data import Dataset, DataLoader
 
-# Neural network model for MNIST classification
-class MNISTClassifier(nn.Module):
+# A simple CNN-based regressor for grape leaf white percentage prediction.
+class GrapeLeafRegressor(nn.Module):
     def __init__(self):
-        super(MNISTClassifier, self).__init__()
-        self.flatten = nn.Flatten()
-        self.model = nn.Sequential(
-            nn.Linear(28 * 28, 512),
+        super(GrapeLeafRegressor, self).__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
-            nn.Linear(512, 128),
+            nn.MaxPool2d(kernel_size=2),  # 32 x 112 x 112
+
+            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
-            nn.Linear(128, 10)  # 10 output classes for digits 0-9
+            nn.MaxPool2d(kernel_size=2),  # 64 x 56 x 56
+
+            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2),  # 128 x 28 x 28
+        )
+        self.regressor = nn.Sequential(
+            nn.Linear(128 * 28 * 28, 256),
+            nn.ReLU(),
+            nn.Linear(256, 1)  # Single regression output (white percentage)
         )
 
     def forward(self, x):
-        x = self.flatten(x)
-        return self.model(x)
+        x = self.features(x)
+        x = x.view(x.size(0), -1)
+        x = self.regressor(x)
+        return x
 
-# Function to train the model on the MNIST dataset
-def train_mnist_model(device):
-    from torchvision.datasets import MNIST
-    from torch.utils.data import DataLoader
+# Custom Dataset for grape leaf images stored in the data/final_images folder.
+class GrapeLeafDataset(Dataset):
+    def __init__(self, images_folder='data/final_images', transform=None):
+        self.images_folder = images_folder
+        self.transform = transform
+        self.image_files = [f for f in os.listdir(os.path.join(images_folder)) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
 
-    transform = transforms.Compose([transforms.ToTensor()])
-    mnist_train = MNIST(root=os.path.join('data'), train=True, download=True, transform=transform)
-    mnist_valid = MNIST(root=os.path.join('data'), train=False, download=True, transform=transform)
+    def __len__(self):
+        return len(self.image_files)
 
-    train_loader = DataLoader(mnist_train, batch_size=32, shuffle=True)
-    valid_loader = DataLoader(mnist_valid, batch_size=32, shuffle=False)
+    def __getitem__(self, idx):
+        image_name = self.image_files[idx]
+        # print(image_name)
+        image_path = os.path.join(self.images_folder, image_name)
+        image = Image.open(image_path).convert('RGB')  # Ensure image is RGB
+        if self.transform:
+            image = self.transform(image)
+        # Extract the ground-truth white percentage from the filename.
+        try:
+            percentage_str = image_name.split('-')[1]
+            percentage = float(percentage_str.split('.')[0]) if '.' in percentage_str else float(percentage_str)
+        except Exception as e:
+            print(f"Error parsing percentage from filename {image_name}: {e}")
+            percentage = 0.0  # Fallback if parsing fails
+        # Convert the percentage to a torch tensor of type float32.
+        percentage_tensor = torch.tensor(percentage, dtype=torch.float32)
+        return image, percentage_tensor
 
-    model = MNISTClassifier().to(device)
-    criterion = nn.CrossEntropyLoss()
+# Function to visualize predictions
+def visualize_predictions(model, dataloader, device, num_images=5):
+    model.eval()
+    images_shown = 0
+    plt.figure(figsize=(15, 10))
+    with torch.no_grad():
+        for images, true_percentages in dataloader:
+            images = images.to(device)
+            outputs = model(images).cpu().squeeze()
+            for i in range(images.size(0)):
+                if images_shown >= num_images:
+                    break
+                image = images[i].cpu().permute(1, 2, 0).numpy()
+                true_percentage = true_percentages[i].item()
+                predicted_percentage = outputs[i].item()
+                plt.subplot(1, num_images, images_shown + 1)
+                plt.imshow(image)
+                plt.title(f"True: {true_percentage:.2f}%\nPredicted: {predicted_percentage:.2f}%")
+                plt.axis('off')
+                images_shown += 1
+            if images_shown >= num_images:
+                break
+    plt.show()
+
+# Training function for the grape leaf model.
+def train_grape_leaf_model(device):
+    transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+    ])
+    dataset = GrapeLeafDataset(transform=transform)
+    dataloader = DataLoader(dataset, batch_size=2, shuffle=True)  # Adjust batch size as needed
+
+    model = GrapeLeafRegressor().to(device)
+    criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
-    num_epochs = 4  # Adjust as needed
-    train_losses, val_losses = [], []
+    num_epochs = 12  # Adjust the number of epochs as needed
 
-    model.train()
     for epoch in range(num_epochs):
+        model.train()
         running_loss = 0.0
-        # Initialize tqdm progress bar
-        with tqdm(total=len(train_loader), desc=f"Epoch {epoch+1}/{num_epochs}", unit='batch') as pbar:
-            for images, labels in train_loader:
-                images, labels = images.to(device), labels.to(device)
+        with tqdm(total=len(dataloader), desc=f"Epoch {epoch+1}/{num_epochs}") as pbar:
+            for images, targets in dataloader:
+                images = images.to(device)
+                targets = targets.to(device).unsqueeze(1)  # Make shape (batch_size, 1)
+
                 optimizer.zero_grad()
                 outputs = model(images)
-                loss = criterion(outputs, labels)
+                loss = criterion(outputs, targets)
                 loss.backward()
                 optimizer.step()
                 running_loss += loss.item() * images.size(0)
-                pbar.update(1)  # Update progress bar
+                pbar.update(1)
 
-        train_loss = running_loss / len(train_loader.dataset)
-        train_losses.append(train_loss)
-
-        model.eval()
-        running_loss = 0.0
-        with torch.no_grad():
-            for images, labels in valid_loader:
-                images, labels = images.to(device), labels.to(device)
-                outputs = model(images)
-                loss = criterion(outputs, labels)
-                running_loss += loss.item() * images.size(0)
-        
-        val_loss = running_loss / len(valid_loader.dataset)
-        val_losses.append(val_loss)
-        
-        print(f"Epoch {epoch+1} - Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
-    return model
+        epoch_loss = running_loss / len(dataset)
+        print(f"Epoch {epoch+1}/{num_epochs}, Loss: {epoch_loss:.4f}")
+    return model, dataloader
 
 # View to handle image upload and evaluation
 def Home(request):
@@ -93,8 +142,8 @@ def Home(request):
 
             # Load and preprocess the uploaded image
             image_path = fs.path(filename)
-            pil_image = Image.open(image_path).convert('L')
-            pil_image = pil_image.resize((28, 28))
+            pil_image = Image.open(image_path).convert('RGB')
+            pil_image = pil_image.resize((224, 224))
             transform = transforms.Compose([transforms.ToTensor()])
             image_tensor = transform(pil_image).unsqueeze(0)
 
@@ -108,8 +157,8 @@ def Home(request):
             model.eval()
             with torch.no_grad():
                 output = model(image_tensor)
-                predicted_class = output.argmax(dim=1).item()
-            prediction = predicted_class
+                predicted_percentage = output.item()
+            prediction = round(predicted_percentage, 1)
     else:
         form = ImageUploadForm()
 
