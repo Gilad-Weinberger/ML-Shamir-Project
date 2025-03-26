@@ -15,6 +15,11 @@ from torch.utils.data import Dataset, DataLoader
 
 # A simple CNN-based regressor for grape leaf white percentage prediction.
 class GrapeLeafRegressor(nn.Module):
+    """
+    A Convolutional Neural Network (CNN) model for predicting the white percentage
+    on grape leaves. The model consists of convolutional layers for feature extraction
+    and fully connected layers for regression.
+    """
     def __init__(self):
         super(GrapeLeafRegressor, self).__init__()
         self.features = nn.Sequential(
@@ -36,6 +41,13 @@ class GrapeLeafRegressor(nn.Module):
             nn.Linear(256, 1)  # Single regression output (white percentage)
         )
 
+    """
+    Forward pass through the model.
+    Args:
+        x (torch.Tensor): Input image tensor.
+    Returns:
+        torch.Tensor: Predicted white percentage.
+    """
     def forward(self, x):
         x = self.features(x)
         x = x.view(x.size(0), -1)
@@ -44,7 +56,17 @@ class GrapeLeafRegressor(nn.Module):
 
 # Custom Dataset for grape leaf images stored in the data/final_images folder.
 class GrapeLeafDataset(Dataset):
+    """
+    A custom PyTorch Dataset for loading grape leaf images and their corresponding
+    white percentage labels. The labels are extracted from the filenames.
+    """
     def __init__(self, images_folder='data/final_images', transform=None):
+        """
+        Initialize the dataset.
+        Args:
+            images_folder (str): Path to the folder containing images.
+            transform (callable, optional): Transformations to apply to the images.
+        """
         self.images_folder = images_folder
         self.transform = transform
         self.image_files = [f for f in os.listdir(os.path.join(images_folder)) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
@@ -53,6 +75,14 @@ class GrapeLeafDataset(Dataset):
         return len(self.image_files)
 
     def __getitem__(self, idx):
+        """
+        Retrieve an image and its corresponding label by index.
+        Args:
+            idx (int): Index of the image.
+        Returns:
+            tuple: (image, label) where image is a transformed image tensor
+                   and label is the white percentage as a tensor.
+        """
         image_name = self.image_files[idx]
         # print(image_name)
         image_path = os.path.join(self.images_folder, image_name)
@@ -72,6 +102,14 @@ class GrapeLeafDataset(Dataset):
 
 # Function to visualize predictions
 def visualize_predictions(model, dataloader, device, num_images=5):
+    """
+    Visualize the model's predictions on a batch of images.
+    Args:
+        model (nn.Module): The trained model.
+        dataloader (DataLoader): DataLoader for the dataset.
+        device (torch.device): Device to run the model on (CPU or GPU).
+        num_images (int): Number of images to visualize.
+    """
     model.eval()
     images_shown = 0
     plt.figure(figsize=(15, 10))
@@ -96,6 +134,14 @@ def visualize_predictions(model, dataloader, device, num_images=5):
 
 # Training function for the grape leaf model.
 def train_grape_leaf_model(device):
+    """
+    Train the grape leaf regression model.
+    Args:
+        device (torch.device): Device to train the model on (CPU or GPU).
+    Returns:
+        tuple: (model, dataloader) where model is the trained model and
+               dataloader is the DataLoader for the training dataset.
+    """
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
@@ -130,6 +176,13 @@ def train_grape_leaf_model(device):
 
 # View to handle image upload and evaluation
 def Home(request):
+    """
+    Django view to handle image upload and evaluate the model on the uploaded image.
+    Args:
+        request (HttpRequest): The HTTP request object.
+    Returns:
+        HttpResponse: Rendered HTML page with the prediction result.
+    """
     prediction = None
     uploaded_image_url = None
     if request.method == 'POST':
