@@ -152,7 +152,7 @@ def train_grape_leaf_model(device):
     model = GrapeLeafRegressor().to(device)
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
-    num_epochs = 15  # Adjust the number of epochs as needed
+    num_epochs = 1  # Adjust the number of epochs as needed
 
     for epoch in range(num_epochs):
         model.train()
