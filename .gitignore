@@ -1,6 +1,6 @@
 project_final_images/
 
-final_data.csv
+*.pth
 
 # delete this later to upload final project:
 images/
