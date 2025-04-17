@@ -211,6 +211,9 @@ def Home(request):
             with torch.no_grad():
                 output = model(image_tensor)
                 predicted_percentage = output.item()
+            
+            # Ensure prediction is between 0 and 100
+            predicted_percentage = max(0, min(100, predicted_percentage))
             prediction = round(predicted_percentage, 1)
     else:
         form = ImageUploadForm()
