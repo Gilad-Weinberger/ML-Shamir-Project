@@ -1,3 +1,11 @@
+**INSTALL REQUIRED PACKAGES**
+
+open the "website" directory in the cmd
+run:
+pip install -r requirements.txt
+
+
+
 **RUN THE PROJECT**
 
 open the "website" directory in the cmd (go to the website dir in the file explorer,  and then in the folder hierarchy, click on it, delete and write "cmd" and click "Enter")
@@ -6,6 +14,11 @@ py manage.py runserver
 
 
 
-**RECOVER THE IAMGES (in case of the model file (.pth extension) and the /data/final_images is gone or empty)**
+**RECOVER THE IMAGES (in case of the model file (.pth extension, located inside ./base) and the /data/final_images is gone or empty)**
 
-add the images to the /website/data/final_images folder
+make sure to delete the .pth file (in /base dir), and empty (not delete) /data/images and /data/final_images 
+add your images to the ./data/images folder
+then run the following command to generate augmented versions (multiply the images):
+python multiply-images.py
+
+then run the website regularly.

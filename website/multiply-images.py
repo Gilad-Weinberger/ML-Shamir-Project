@@ -2,8 +2,8 @@ from PIL import Image
 import os
 
 # Set the source directory and the directory to save the augmented images.
-directory = "./images"
-final_directory = "./website/data/final_images"
+directory = "./data/images"
+final_directory = "./data/final_images"
 
 # Create the final directory if it doesn't exist.
 if not os.path.exists(final_directory):
