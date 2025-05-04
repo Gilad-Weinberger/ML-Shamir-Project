@@ -1,0 +1,11 @@
+**RUN THE PROJECT**
+
+open the "website" directory in the cmd (go to the website dir in the file explorer,  and then in the folder hierarchy, click on it, delete and write "cmd" and click "Enter")
+run:
+py manage.py runserver
+
+
+
+**RECOVER THE IAMGES (in case of the model file (.pth extension) and the /data/final_images is gone or empty)**
+
+add the images to the /website/data/final_images folder

@@ -3,7 +3,7 @@ import os
 
 # Set the source directory and the directory to save the augmented images.
 directory = "./images"
-final_directory = "./final_images"
+final_directory = "./website/data/final_images"
 
 # Create the final directory if it doesn't exist.
 if not os.path.exists(final_directory):
