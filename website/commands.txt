@@ -22,3 +22,8 @@ then run the following command to generate augmented versions (multiply the imag
 python multiply-images.py
 
 then run the website regularly.
+
+
+** IMPORTANT ALERT **
+in case of the model file gone, but the images still exist, run the project regularly.
+the model file will be created again (might take some time...) and be saved the exact same way it was saved before.
