@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -208,6 +209,107 @@ def train_grape_leaf_model(device):
         print(f"Epoch {epoch+1}/{num_epochs}, Loss: {epoch_loss:.4f}")
         
     return model, dataloader
+    
+def evaluate_model_performance(model, dataloader, device, threshold=5.0):
+    """
+    Evaluates the model on test data and prints detailed accuracy metrics.
+    """
+    model.eval()
+    predictions = []
+    targets = []
+    
+    print(f"\n--- Starting Evaluation (Acceptable Margin: ±{threshold}%) ---")
+    
+    with torch.no_grad():
+        for images, true_percents in dataloader:
+            images = images.to(device)
+            outputs = model(images).cpu().squeeze()
+            
+            # Handle single-item batch edge case
+            if outputs.ndim == 0:
+                outputs = outputs.unsqueeze(0)
+                
+            predictions.extend(outputs.numpy())
+            targets.extend(true_percents.numpy())
+
+    # Convert to numpy for calculations
+    predictions = np.array(predictions)
+    targets = np.array(targets)
+    
+    # Clip predictions to 0-100 range (physics constraint)
+    predictions = np.clip(predictions, 0, 100)
+
+    # 1. Mean Absolute Error (MAE)
+    absolute_errors = np.abs(predictions - targets)
+    mae = np.mean(absolute_errors)
+
+    # 2. Accuracy at main threshold and at looser thresholds (to see how strict ±5% is)
+    n = len(targets)
+    accurate_count = np.sum(absolute_errors <= threshold)
+    accuracy = (accurate_count / n) * 100.0 if n > 0 else 0
+
+    print(f"\nResults on {n} Test Images:")
+    if n < 10:
+        print("  (With so few test images, accuracy % is unstable; consider adding more test data.)")
+    print(f"Mean Absolute Error (MAE): {mae:.2f}% (average error per leaf)")
+    print(f"Accuracy (Within ±{threshold}%): {accuracy:.2f}% ({accurate_count}/{n} images)")
+    # Accuracy at ±7% (used for scatter plot title)
+    accurate_7 = np.sum(absolute_errors <= 7.0)
+    accuracy_7 = (accurate_7 / n) * 100.0 if n > 0 else 0
+    print(f"Accuracy (Within ±7%): {accuracy_7:.2f}% ({accurate_7}/{n} images)")
+    # Show how accuracy changes with looser thresholds
+    for margin in (5.0, 10.0, 15.0):
+        if margin != threshold:
+            count = np.sum(absolute_errors <= margin)
+            pct = (count / n) * 100.0 if n > 0 else 0
+            print(f"  Within ±{margin:.0f}%: {pct:.1f}% ({count}/{n})")
+    print("\nPer-image: True % → Predicted % (error):")
+    for i in range(n):
+        err = absolute_errors[i]
+        mark = "✓" if err <= threshold else "✗"
+        print(f"  {mark}  {targets[i]:.1f}% → {predictions[i]:.1f}% (error {err:.1f}%)")
+    
+    # Visualization: Scatter Plot with ±7% margin
+    plt.figure(figsize=(10, 6))
+    plt.scatter(targets, predictions, alpha=0.6, color='blue', label='Predictions')
+    plt.plot([0, 100], [0, 100], 'r--', label='Perfect Prediction')
+    # ±7% margin band (clip to 0–100 for display)
+    x_plot = np.linspace(0, 100, 2)
+    plt.plot(x_plot, np.clip(x_plot + 7, 0, 100), 'g--', alpha=0.8, label='±7% margin')
+    plt.plot(x_plot, np.clip(x_plot - 7, 0, 100), 'g--', alpha=0.8, label='_nolegend_')
+    plt.xlabel("True White Percentage")
+    plt.ylabel("Predicted White Percentage")
+    plt.title(f"Model Performance (Accuracy within ±7%: {accuracy_7:.2f}%)")
+    plt.xlim(0, 100)
+    plt.ylim(0, 100)
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.savefig('evaluation_results.png')
+    plt.close()
+    print("Evaluation chart saved as 'evaluation_results.png'")
+
+    # Graph: Accuracy vs acceptable margin (±0% to ±12%)
+    margins = np.arange(0, 13, dtype=float)  # 0, 1, 2, ..., 12
+    accuracies_at_margin = [
+        (np.sum(absolute_errors <= m) / n) * 100.0 if n > 0 else 0.0
+        for m in margins
+    ]
+    plt.figure(figsize=(10, 6))
+    plt.plot(margins, accuracies_at_margin, 'b-o', linewidth=2, markersize=6)
+    for x, y in zip(margins, accuracies_at_margin):
+        label = f"{int(round(y))}%" if y == int(y) else f"{y:.1f}%"
+        plt.text(x, y + 2.5, label, ha='center', va='bottom', fontsize=8)
+    plt.xlabel("Acceptable margin (±%)")
+    plt.ylabel("Accuracy (%)")
+    plt.title("Test accuracy vs acceptable error margin (±0% to ±12%)")
+    plt.xticks(margins)
+    plt.ylim(-5, 105)
+    plt.grid(True, alpha=0.3)
+    plt.savefig('evaluation_accuracy_by_margin.png')
+    plt.close()
+    print("Accuracy-by-margin chart saved as 'evaluation_accuracy_by_margin.png'")
+
+    return mae, accuracy
 
 # View to handle image upload and evaluation
 def Home(request):
