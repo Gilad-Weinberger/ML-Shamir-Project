@@ -12,10 +12,10 @@
     <div class="container">
       <h1>Upload Your Image</h1>
       <div class="flex-container">
-        {% if prediction %}
+        {% if prediction is not None %}
         <div class="alert">
           Predicted:
-          <p class="number">{{ prediction }}</p>
+          <p class="number">{{ prediction }}%</p>
         </div>
         {% endif %} {% if uploaded_image_url %}
         <div class="uploaded-image">

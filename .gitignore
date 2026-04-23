@@ -6,3 +6,7 @@ project_final_images/
 images/
 losses/
 current_data.csv
+
+/website/media/
+
+/website/guide.html
