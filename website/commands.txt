@@ -13,6 +13,17 @@ run:
 py manage.py runserver
 
 
+**RUN THE MODEL EVALUATION**
+
+open the "website" directory in the cmd
+run:
+py manage.py evaluate_model
+
+this prints the model evaluation results and regenerates:
+evaluation_results.png
+evaluation_accuracy_by_margin.png
+
+
 
 **RECOVER THE IMAGES (in case of the model file (.pth extension, located inside ./base) and the /data/final_images is gone or empty)**
 

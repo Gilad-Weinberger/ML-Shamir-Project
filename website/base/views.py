@@ -9,7 +9,6 @@ from django.shortcuts import render
 from django.core.files.storage import FileSystemStorage
 from .forms import ImageUploadForm
 from django.apps import apps
-from django_tqdm import BaseCommand
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
@@ -269,22 +268,31 @@ def evaluate_model_performance(model, dataloader, device, threshold=5.0):
         mark = "✓" if err <= threshold else "✗"
         print(f"  {mark}  {targets[i]:.1f}% → {predictions[i]:.1f}% (error {err:.1f}%)")
     
+    chart_dpi = 150
+    title_font_size = 22
+    label_font_size = 18
+    tick_font_size = 14
+    legend_font_size = 14
+    point_label_font_size = 15
+
     # Visualization: Scatter Plot with ±7% margin
-    plt.figure(figsize=(10, 6))
-    plt.scatter(targets, predictions, alpha=0.6, color='blue', label='Predictions')
-    plt.plot([0, 100], [0, 100], 'r--', label='Perfect Prediction')
+    plt.figure(figsize=(14, 9), dpi=chart_dpi)
+    plt.scatter(targets, predictions, alpha=0.6, color='blue', label='Predictions', s=70)
+    plt.plot([0, 100], [0, 100], 'r--', linewidth=2.5, label='Perfect Prediction')
     # ±7% margin band (clip to 0–100 for display)
     x_plot = np.linspace(0, 100, 2)
-    plt.plot(x_plot, np.clip(x_plot + 7, 0, 100), 'g--', alpha=0.8, label='±7% margin')
-    plt.plot(x_plot, np.clip(x_plot - 7, 0, 100), 'g--', alpha=0.8, label='_nolegend_')
-    plt.xlabel("True White Percentage")
-    plt.ylabel("Predicted White Percentage")
-    plt.title(f"Model Performance (Accuracy within ±7%: {accuracy_7:.2f}%)")
+    plt.plot(x_plot, np.clip(x_plot + 7, 0, 100), 'g--', alpha=0.8, linewidth=2.5, label='±7% margin')
+    plt.plot(x_plot, np.clip(x_plot - 7, 0, 100), 'g--', alpha=0.8, linewidth=2.5, label='_nolegend_')
+    plt.xlabel("True White Percentage", fontsize=label_font_size)
+    plt.ylabel("Predicted White Percentage", fontsize=label_font_size)
+    plt.title(f"Model Performance (Accuracy within ±7%: {accuracy_7:.2f}%)", fontsize=title_font_size, pad=18)
     plt.xlim(0, 100)
     plt.ylim(0, 100)
-    plt.legend()
+    plt.xticks(fontsize=tick_font_size)
+    plt.yticks(fontsize=tick_font_size)
+    plt.legend(fontsize=legend_font_size)
     plt.grid(True, alpha=0.3)
-    plt.savefig('evaluation_results.png')
+    plt.savefig('evaluation_results.png', dpi=chart_dpi, bbox_inches='tight')
     plt.close()
     print("Evaluation chart saved as 'evaluation_results.png'")
 
@@ -294,18 +302,28 @@ def evaluate_model_performance(model, dataloader, device, threshold=5.0):
         (np.sum(absolute_errors <= m) / n) * 100.0 if n > 0 else 0.0
         for m in margins
     ]
-    plt.figure(figsize=(10, 6))
-    plt.plot(margins, accuracies_at_margin, 'b-o', linewidth=2, markersize=6)
+    plt.figure(figsize=(14, 9), dpi=chart_dpi)
+    plt.plot(margins, accuracies_at_margin, color='blue', linewidth=3, zorder=2)
+    plt.scatter(
+        margins,
+        accuracies_at_margin,
+        color='blue',
+        edgecolors='white',
+        linewidths=2,
+        s=150,
+        zorder=3,
+    )
     for x, y in zip(margins, accuracies_at_margin):
         label = f"{int(round(y))}%" if y == int(y) else f"{y:.1f}%"
-        plt.text(x, y + 2.5, label, ha='center', va='bottom', fontsize=8)
-    plt.xlabel("Acceptable margin (±%)")
-    plt.ylabel("Accuracy (%)")
-    plt.title("Test accuracy vs acceptable error margin (±0% to ±12%)")
-    plt.xticks(margins)
-    plt.ylim(-5, 105)
+        plt.text(x, min(y + 3, 102), label, ha='center', va='bottom', fontsize=point_label_font_size)
+    plt.xlabel("Acceptable margin (±%)", fontsize=label_font_size)
+    plt.ylabel("Accuracy (%)", fontsize=label_font_size)
+    plt.title("Test accuracy vs acceptable error margin (±0% to ±12%)", fontsize=title_font_size, pad=18)
+    plt.xticks(margins, fontsize=tick_font_size)
+    plt.yticks(fontsize=tick_font_size)
+    plt.ylim(-5, 110)
     plt.grid(True, alpha=0.3)
-    plt.savefig('evaluation_accuracy_by_margin.png')
+    plt.savefig('evaluation_accuracy_by_margin.png', dpi=chart_dpi, bbox_inches='tight')
     plt.close()
     print("Accuracy-by-margin chart saved as 'evaluation_accuracy_by_margin.png'")
 
