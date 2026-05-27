@@ -4,38 +4,58 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Image Upload</title>
+    <title>Downy Mildew Leaf Assessment</title>
     <!-- Link to the compiled CSS file -->
     <link rel="stylesheet" href="{% static 'css/base/home.css' %}" />
   </head>
   <body>
-    <div class="container">
-      <h1>Upload Your Image</h1>
-      <div class="flex-container">
-        {% if prediction is not None %}
-        <div class="alert">
-          Predicted:
-          <p class="number">{{ prediction }}%</p>
-        </div>
-        {% endif %} {% if uploaded_image_url %}
-        <div class="uploaded-image">
-          <h2>Uploaded Image:</h2>
-          <img
-            src="{{ uploaded_image_url }}"
-            alt="Uploaded Image"
-            class="img-fluid"
-          />
-        </div>
-        {% endif %}
+    <main class="container">
+      <section class="hero">
+        <p class="eyebrow">Leaf image analysis</p>
+        <h1>Downy Mildew Assessment</h1>
+        <p class="subtitle">
+          Upload a leaf image to estimate the affected area.
+        </p>
+      </section>
 
-        <form method="post" enctype="multipart/form-data">
-          {% csrf_token %}
-          <div class="form-group">
-            {{ form.image.label_tag }} {{ form.image }}
+      <section class="workspace" aria-label="Leaf assessment workspace">
+        <div class="panel upload-panel">
+          <h2>Upload sample</h2>
+          <p class="panel-note">Use a clear, well-lit leaf image.</p>
+          <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="form-group">
+              {{ form.image.label_tag }} {{ form.image }}
+            </div>
+            <button type="submit" class="btn-primary">Analyze image</button>
+          </form>
+        </div>
+
+        <div class="panel results-panel">
+          {% if prediction is not None %}
+          <div class="result-card">
+            <span class="result-label">
+              Estimated percentage of Downy Mildew in the leaf
+            </span>
+            <strong class="result-value">{{ prediction }}%</strong>
           </div>
-          <button type="submit" class="btn-primary">Upload</button>
-        </form>
-      </div>
-    </div>
+          {% else %}
+          <div class="empty-state">
+            <span class="empty-icon" aria-hidden="true"></span>
+            <p>Results will appear here after analysis.</p>
+          </div>
+          {% endif %} {% if uploaded_image_url %}
+          <div class="uploaded-image">
+            <h2>Sample preview</h2>
+            <img
+              src="{{ uploaded_image_url }}"
+              alt="Uploaded leaf sample"
+              class="img-fluid"
+            />
+          </div>
+          {% endif %}
+        </div>
+      </section>
+    </main>
   </body>
 </html>
