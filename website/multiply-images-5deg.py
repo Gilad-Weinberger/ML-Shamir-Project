@@ -1,9 +1,9 @@
 from PIL import Image
 import os
 
-# Set the source directory and the directory to save the augmented images.
+# Set the source directory and the separate directory for 5-degree augmented images.
 directory = "./data/images"
-final_directory = "./data/final_images"
+final_directory = "./data/final_images_5deg"
 image_extensions = (".png", ".jpg", ".jpeg", ".bmp", ".gif")
 
 # Create the final directory if it doesn't exist.
@@ -31,15 +31,11 @@ def image_is_valid(image_path):
 
 def expected_output_names(filename):
     name, extension = os.path.splitext(filename)
-    output_names = [filename]
+    output_names = []
 
-    for j in range(1, 3):
-        angle = 90 * j
+    for angle in range(0, 360, 5):
         output_names.append(f"{name}-rotated_{angle}{extension}")
         output_names.append(f"{name}-rotated_{angle}_flipped_h{extension}")
-        output_names.append(f"{name}-rotated_{angle}_flipped_v{extension}")
-        if j != 2:
-            output_names.append(f"{name}-rotated_{angle}_flipped_b{extension}")
 
     return output_names
 
@@ -124,66 +120,39 @@ def output_is_done(save_path):
     return False
 
 
-print(f"Starting original augmentation from {directory} into {final_directory}...")
+print(f"Starting 5-degree augmentation from {directory} into {final_directory}...")
 print_resume_status()
 
 # Loop over all files in the source directory.
 for filename in os.listdir(directory):
     file_path = os.path.join(directory, filename)
-    
+
     # Process only files that are images (you can add or remove extensions as needed)
     if os.path.isfile(file_path) and filename.lower().endswith(image_extensions):
-        # Open the image.
         with Image.open(file_path) as img:
-            # Save the original image to the final directory.
-            save_name = filename
-            save_path = os.path.join(final_directory, save_name)
-            if output_is_done(save_path):
-                skipped_count += 1
-            else:
-                save_augmented_image(img, save_path)
+            name, extension = os.path.splitext(filename)
 
-            # Apply augmentations: rotate, flip horizontally, vertically, and (if applicable) both.
-            for j in range(1, 3):
-                angle = 90 * j
+            # Unique 5-degree transforms: all rotations plus one reflected version per angle.
+            for angle in range(0, 360, 5):
+                rotated_name = f"{name}-rotated_{angle}{extension}"
+                rotated_path = os.path.join(final_directory, rotated_name)
+                flipped_h_name = f"{name}-rotated_{angle}_flipped_h{extension}"
+                flipped_h_path = os.path.join(final_directory, flipped_h_name)
 
-                # Save the rotated image.
-                new_name = f"{os.path.splitext(filename)[0]}-rotated_{angle}{os.path.splitext(filename)[1]}"
-                rotated_save_path = os.path.join(final_directory, new_name)
-                new_name_h = f"{os.path.splitext(filename)[0]}-rotated_{angle}_flipped_h{os.path.splitext(filename)[1]}"
-                flipped_h_path = os.path.join(final_directory, new_name_h)
-                new_name_v = f"{os.path.splitext(filename)[0]}-rotated_{angle}_flipped_v{os.path.splitext(filename)[1]}"
-                flipped_v_path = os.path.join(final_directory, new_name_v)
-                expected_paths = [rotated_save_path, flipped_h_path, flipped_v_path]
-                if j != 2:
-                    new_name_b = f"{os.path.splitext(filename)[0]}-rotated_{angle}_flipped_b{os.path.splitext(filename)[1]}"
-                    flipped_b_path = os.path.join(final_directory, new_name_b)
-                    expected_paths.append(flipped_b_path)
-
-                if all(output_is_done(path) for path in expected_paths):
-                    skipped_count += len(expected_paths)
+                if output_is_done(rotated_path) and output_is_done(flipped_h_path):
+                    skipped_count += 2
                     continue
 
                 rotated_image = img.rotate(angle)
-                save_augmented_image(rotated_image, rotated_save_path)
+                save_augmented_image(rotated_image, rotated_path)
 
-                # Flip horizontally.
                 flipped_h = rotated_image.transpose(Image.FLIP_LEFT_RIGHT)
                 save_augmented_image(flipped_h, flipped_h_path)
-
-                # Flip vertically.
-                flipped_v = rotated_image.transpose(Image.FLIP_TOP_BOTTOM)
-                save_augmented_image(flipped_v, flipped_v_path)
-
-                # For the first rotation (90°), also flip both horizontally and vertically.
-                if j != 2:
-                    flipped_b = rotated_image.transpose(Image.ROTATE_180)
-                    save_augmented_image(flipped_b, flipped_b_path)
     else:
         continue
 
 print(
-    f"Finished original augmentation. Saved/confirmed {completed_count} total images, "
+    f"Finished 5-degree augmentation. Saved/confirmed {completed_count} total images, "
     f"saved {saved_count} new images, "
     f"skipped {skipped_count} existing images, repaired {repaired_count} broken images "
     f"into {final_directory}."

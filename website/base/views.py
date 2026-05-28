@@ -1,4 +1,6 @@
+import copy
 import os
+import sys
 import numpy as np
 import torch
 import torch.nn as nn
@@ -12,6 +14,16 @@ from django.apps import apps
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
+
+WEBSITE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if WEBSITE_ROOT not in sys.path:
+    sys.path.insert(0, WEBSITE_ROOT)
+
+from model_config import (
+    EARLY_STOPPING_MIN_DELTA,
+    EARLY_STOPPING_PATIENCE,
+    NUM_EPOCHS,
+)
 
 # A simple CNN-based regressor for grape leaf white percentage prediction.
 class GrapeLeafRegressor(nn.Module):
@@ -57,7 +69,7 @@ class GrapeLeafRegressor(nn.Module):
         x = self.regressor(x)  # Produce the final regression prediction
         return x
 
-# Custom Dataset for grape leaf images stored in the data/final_images folder.
+# Custom Dataset for grape leaf images stored in the selected image folder.
 class GrapeLeafDataset(Dataset):
     """
     A custom PyTorch Dataset for loading grape leaf images and their corresponding
@@ -151,11 +163,13 @@ def visualize_predictions(model, dataloader, device, num_images=5):
     plt.show()  # Display the visualization
 
 # Training function for the grape leaf model.
-def train_grape_leaf_model(device):
+def train_grape_leaf_model(device, images_folder='data/final_images', model_variant='original'):
     """
     Train the grape leaf regression model.
     Args:
         device (torch.device): Device to train the model on (CPU or GPU).
+        images_folder (str): Folder containing the images for this model variant.
+        model_variant (str): Selected model variant name, e.g. "original" or "5deg".
     Returns:
         tuple: (model, dataloader) where model is the trained model and
                dataloader is the DataLoader for the training dataset.
@@ -166,9 +180,37 @@ def train_grape_leaf_model(device):
         transforms.ToTensor(),  # Convert PIL images to tensors and normalize to [0,1]
     ])
     
-    # Create dataset and dataloader for efficient batch processing
-    dataset = GrapeLeafDataset(transform=transform)
-    dataloader = DataLoader(dataset, batch_size=2, shuffle=True)  # Shuffle data for better training
+    # Create datasets from physically separated train/validation subfolders.
+    train_folder = os.path.join(images_folder, 'train')
+    validation_folder = os.path.join(images_folder, 'validation')
+
+    if not os.path.isdir(train_folder) or not os.path.isdir(validation_folder):
+        raise FileNotFoundError(
+            f"Missing training split folders for '{model_variant}'. "
+            f"Expected {train_folder} and {validation_folder}. "
+            f"Run split-train-validation.py first."
+        )
+
+    training_dataset = GrapeLeafDataset(images_folder=train_folder, transform=transform)
+    validation_dataset = GrapeLeafDataset(images_folder=validation_folder, transform=transform)
+
+    if len(training_dataset) == 0:
+        raise ValueError(f"No training images found in {train_folder}.")
+
+    print(
+        f"Training '{model_variant}' model using physically separated folders:\n"
+        f"  train: {train_folder} ({len(training_dataset)} images)\n"
+        f"  validation: {validation_folder} ({len(validation_dataset)} images)"
+    )
+
+    dataloader = DataLoader(training_dataset, batch_size=32, shuffle=True)
+
+    if len(validation_dataset) == 0:
+        validation_dataloader = None
+        print("No validation images found; training without early stopping.")
+    else:
+        validation_dataloader = DataLoader(validation_dataset, batch_size=32, shuffle=False)
+        print(f"Early stopping patience: {EARLY_STOPPING_PATIENCE} epochs.")
 
     # Initialize model and move it to the appropriate device (CPU/GPU)
     model = GrapeLeafRegressor().to(device)
@@ -178,7 +220,12 @@ def train_grape_leaf_model(device):
     
     # Define optimizer with learning rate (Adam is a popular choice that adapts learning rates)
     optimizer = optim.Adam(model.parameters(), lr=0.001)
-    num_epochs = 30  # Training will run for 30 full passes through the dataset
+    num_epochs = NUM_EPOCHS
+    patience = EARLY_STOPPING_PATIENCE
+    min_delta = EARLY_STOPPING_MIN_DELTA
+    best_validation_loss = float('inf')
+    best_model_state = copy.deepcopy(model.state_dict())
+    epochs_without_improvement = 0
 
     # Training loop
     for epoch in range(num_epochs):
@@ -204,15 +251,50 @@ def train_grape_leaf_model(device):
                 pbar.update(1)  # Update progress bar
 
         # Calculate and display average loss for the epoch
-        epoch_loss = running_loss / len(dataset)
-        print(f"Epoch {epoch+1}/{num_epochs}, Loss: {epoch_loss:.4f}")
+        epoch_loss = running_loss / len(dataloader.dataset)
+
+        if validation_dataloader is None:
+            print(f"Epoch {epoch+1}/{num_epochs}, Loss: {epoch_loss:.4f}")
+            continue
+
+        model.eval()
+        validation_loss = 0.0
+        with torch.no_grad():
+            for images, targets in validation_dataloader:
+                images = images.to(device)
+                targets = targets.to(device).unsqueeze(1)
+                outputs = model(images)
+                loss = criterion(outputs, targets)
+                validation_loss += loss.item() * images.size(0)
+
+        validation_loss = validation_loss / len(validation_dataloader.dataset)
+        print(
+            f"Epoch {epoch+1}/{num_epochs}, "
+            f"Loss: {epoch_loss:.4f}, Validation Loss: {validation_loss:.4f}"
+        )
+
+        if validation_loss < best_validation_loss - min_delta:
+            best_validation_loss = validation_loss
+            best_model_state = copy.deepcopy(model.state_dict())
+            epochs_without_improvement = 0
+        else:
+            epochs_without_improvement += 1
+
+        if epochs_without_improvement >= patience:
+            print(
+                f"Early stopping at epoch {epoch+1}. "
+                f"Best validation loss: {best_validation_loss:.4f}"
+            )
+            break
         
+    model.load_state_dict(best_model_state)
     return model, dataloader
     
-def evaluate_model_performance(model, dataloader, device, threshold=5.0):
+def evaluate_model_performance(model, dataloader, device, threshold=5.0, output_dir='.'):
     """
     Evaluates the model on test data and prints detailed accuracy metrics.
     """
+    os.makedirs(output_dir, exist_ok=True)
     model.eval()
     predictions = []
     targets = []
@@ -292,9 +374,10 @@ def evaluate_model_performance(model, dataloader, device, threshold=5.0):
     plt.yticks(fontsize=tick_font_size)
     plt.legend(fontsize=legend_font_size)
     plt.grid(True, alpha=0.3)
-    plt.savefig('evaluation_results.png', dpi=chart_dpi, bbox_inches='tight')
+    results_chart_path = os.path.join(output_dir, 'evaluation_results.png')
+    plt.savefig(results_chart_path, dpi=chart_dpi, bbox_inches='tight')
     plt.close()
-    print("Evaluation chart saved as 'evaluation_results.png'")
+    print(f"Evaluation chart saved as '{results_chart_path}'")
 
     # Graph: Accuracy vs acceptable margin (±0% to ±12%)
     margins = np.arange(0, 13, dtype=float)  # 0, 1, 2, ..., 12
@@ -323,9 +406,10 @@ def evaluate_model_performance(model, dataloader, device, threshold=5.0):
     plt.yticks(fontsize=tick_font_size)
     plt.ylim(-5, 110)
     plt.grid(True, alpha=0.3)
-    plt.savefig('evaluation_accuracy_by_margin.png', dpi=chart_dpi, bbox_inches='tight')
+    margin_chart_path = os.path.join(output_dir, 'evaluation_accuracy_by_margin.png')
+    plt.savefig(margin_chart_path, dpi=chart_dpi, bbox_inches='tight')
     plt.close()
-    print("Accuracy-by-margin chart saved as 'evaluation_accuracy_by_margin.png'")
+    print(f"Accuracy-by-margin chart saved as '{margin_chart_path}'")
 
     return mae, accuracy
 

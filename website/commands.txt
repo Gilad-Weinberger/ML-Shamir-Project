@@ -6,6 +6,26 @@ pip install -r requirements.txt
 
 
 
+**MAIN CONFIG FILE**
+
+Change ONLY this file for training, splitting, and evaluation:
+website/model_config.py
+
+Set:
+MODEL_VARIANT = "original"
+or
+MODEL_VARIANT = "original_test"
+or
+MODEL_VARIANT = "test_2"
+or
+MODEL_VARIANT = "5deg"
+
+This one variable controls:
+- which .pth file is loaded/trained
+- which dataset folder is split and used
+- which eval_images folder receives evaluation charts/metrics
+
+
 **RUN THE PROJECT**
 
 open the "website" directory in the cmd (go to the website dir in the file explorer,  and then in the folder hierarchy, click on it, delete and write "cmd" and click "Enter")
@@ -16,12 +36,28 @@ py manage.py runserver
 **RUN THE MODEL EVALUATION**
 
 open the "website" directory in the cmd
+make sure MODEL_VARIANT in model_config.py matches the model you want to evaluate
+evaluation reads test images from:
+- original/original_test/test_2 -> data/final_images/test
+- 5deg                          -> data/final_images_5deg/test
+
+evaluation charts/metrics are saved to:
+- original      -> eval_images
+- original_test -> eval_images_test
+- test_2        -> eval_images_test_2
+- 5deg          -> eval_images_5deg
 run:
 py manage.py evaluate_model
 
-this prints the model evaluation results and regenerates:
-evaluation_results.png
-evaluation_accuracy_by_margin.png
+this prints the model evaluation results and saves charts inside the matching eval folder:
+eval_images/evaluation_results.png
+eval_images/evaluation_accuracy_by_margin.png
+eval_images_test/evaluation_results.png
+eval_images_test/evaluation_accuracy_by_margin.png
+eval_images_test_2/evaluation_results.png
+eval_images_test_2/evaluation_accuracy_by_margin.png
+eval_images_5deg/evaluation_results.png
+eval_images_5deg/evaluation_accuracy_by_margin.png
 
 
 
@@ -31,6 +67,8 @@ make sure to delete the .pth file (in /base dir), and empty (not delete) /data/i
 add your images to the ./data/images folder
 then run the following command to generate augmented versions (multiply the images):
 python multiply-images.py
+then split the dataset into train/, validation/, and test/:
+python split-train-validation.py
 
 then run the website regularly.
 
@@ -38,3 +76,198 @@ then run the website regularly.
 ** IMPORTANT ALERT **
 in case of the model file gone, but the images still exist, run the project regularly.
 the model file will be created again (might take some time...) and be saved the exact same way it was saved before.
+
+Both the original and 5-degree models use the same training method:
+- physically separated folders: train/, validation/, and test/
+- 60% train / 20% validation / 20% test split
+- training uses train/
+- early stopping uses validation/
+- evaluation uses test/
+- validation loss monitoring
+- early stopping after 5 epochs without improvement
+- saves the best validation weights to the matching .pth file
+- eval_images folders store evaluation charts/metrics only
+
+
+**SPLIT DATA INTO train/, validation/, AND test/ SUBFOLDERS**
+
+After augmentation, split the generated dataset into three physically separate subfolders:
+- 60% train
+- 20% validation
+- 20% test
+
+1. Set MODEL_VARIANT in model_config.py to the dataset you want to split:
+   - "original", "original_test", or "test_2" -> data/final_images
+   - "5deg" -> data/final_images_5deg
+2. Run:
+python split-train-validation.py
+
+This creates:
+- train/
+- validation/
+- test/
+
+If new augmented images are added later to the root of final_images, run the split script again.
+It moves only new root-level images and keeps already-assigned files untouched.
+
+If you already have an old 80/20 split and want a fresh 60/20/20 split:
+python split-train-validation.py --rebalance
+
+This moves everything from train/, validation/, and test/ back to the dataset root,
+then re-splits all images into train/validation/test again.
+After rebalancing, retrain the model because the training set changed.
+
+
+**THREE SEPARATE DATA GROUPS**
+
+Training uses:
+- data/final_images/train
+or for 5deg:
+- data/final_images_5deg/train
+
+Validation during training uses:
+- data/final_images/validation
+or for 5deg:
+- data/final_images_5deg/validation
+
+Evaluation uses:
+- data/final_images/test
+or for 5deg:
+- data/final_images_5deg/test
+
+Evaluation charts/metrics are saved to:
+- eval_images
+- eval_images_test
+- eval_images_test_2
+- eval_images_5deg
+
+
+**TEST NEW TRAINING ON ORIGINAL DATA WITHOUT REPLACING grape_leaf_model.pth**
+
+Use this when you want to try the new training method on data/final_images,
+but keep your current base/grape_leaf_model.pth untouched.
+
+1. Open model_config.py.
+2. Set:
+MODEL_VARIANT = "original_test"
+3. Run:
+py manage.py runserver
+
+This trains or loads:
+- base/grape_leaf_model_test.pth
+- data/final_images
+
+Your current original file stays unchanged:
+- base/grape_leaf_model.pth
+
+To evaluate the test-trained original model:
+1. Make sure split-train-validation.py has already created data/final_images/test
+2. Keep MODEL_VARIANT = "original_test"
+3. Run:
+py manage.py evaluate_model
+
+To go back to the saved original/current model:
+MODEL_VARIANT = "original"
+
+
+**TRAIN ANOTHER EXPERIMENT ON ORIGINAL DATA (test_2)**
+
+Use this for a second parallel experiment on data/final_images without touching
+grape_leaf_model.pth or grape_leaf_model_test.pth.
+
+1. Open model_config.py.
+2. Set:
+MODEL_VARIANT = "test_2"
+3. Run:
+py manage.py runserver
+
+This trains or loads:
+- base/grape_leaf_model_test_2.pth
+- data/final_images
+
+To evaluate:
+1. Keep MODEL_VARIANT = "test_2"
+2. Run:
+py manage.py evaluate_model
+
+Charts are saved to eval_images_test_2/
+
+
+**CREATE THE 5-DEGREE AUGMENTED DATASET AND MODEL**
+
+This keeps the current/original model and dataset:
+- base/grape_leaf_model.pth
+- data/final_images/train
+- data/final_images/validation
+- data/final_images/test
+- eval_images for charts
+
+The 5-degree version uses:
+- base/grape_leaf_model_5deg.pth
+- data/final_images_5deg/train
+- data/final_images_5deg/validation
+- data/final_images_5deg/test
+- eval_images_5deg for charts
+
+The original_test version uses:
+- base/grape_leaf_model_test.pth
+- data/final_images/train
+- data/final_images/validation
+- data/final_images/test
+- eval_images_test for charts
+
+The test_2 version uses:
+- base/grape_leaf_model_test_2.pth
+- data/final_images/train
+- data/final_images/validation
+- data/final_images/test
+- eval_images_test_2 for charts
+
+To create the 5-degree augmented training images:
+1. Add your source images to data/images.
+2. Run:
+python multiply-images-5deg.py
+3. This creates augmented images in data/final_images_5deg.
+4. Split the 5-degree training pool:
+python split-train-validation.py
+(with MODEL_VARIANT = "5deg" in model_config.py)
+
+If the command stops before finishing, run it again.
+It will skip already-valid generated images and continue creating only missing or broken images.
+It prints progress every 50 newly saved images and a final saved/skipped/repaired summary.
+
+To train or run the 5-degree model:
+1. Open model_config.py.
+2. Set:
+MODEL_VARIANT = "5deg"
+3. Run:
+py manage.py runserver
+
+If base/grape_leaf_model_5deg.pth does not exist yet, the project will train it from data/final_images_5deg and save it.
+
+To go back to the original/current model:
+1. Open model_config.py.
+2. Set:
+MODEL_VARIANT = "original"
+3. Run:
+py manage.py runserver
+
+By default, MODEL_VARIANT should be "original", so the project uses the current/original model and data.
+
+To evaluate the original/current model:
+1. Make sure data/final_images/test exists from split-train-validation.py
+2. Make sure model_config.py has:
+MODEL_VARIANT = "original"
+3. Run:
+py manage.py evaluate_model
+
+To evaluate the 5-degree model:
+1. Make sure data/final_images_5deg/test exists from split-train-validation.py
+2. Make sure model_config.py has:
+MODEL_VARIANT = "5deg"
+3. Run:
+py manage.py evaluate_model
+
+Do not delete or empty data/final_images when using the 5-degree method.
+Do not delete base/grape_leaf_model.pth when using the 5-degree method.
+eval_images folders are for evaluation charts/metrics output only.

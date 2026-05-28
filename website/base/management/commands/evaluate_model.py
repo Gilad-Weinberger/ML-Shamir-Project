@@ -1,81 +1,82 @@
 import os
+import sys
 import time
 
 import torch
 from django.apps import apps
 from django.core.management.base import BaseCommand
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader
 from torchvision import transforms
 
+WEBSITE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+if WEBSITE_ROOT not in sys.path:
+    sys.path.insert(0, WEBSITE_ROOT)
+
+from model_config import EVALUATION_THRESHOLD, MODEL_VARIANTS, get_eval_folder, get_test_folder
 from base.views import GrapeLeafDataset, evaluate_model_performance
 
 
-TEST_SPLIT_SEED = 42
-TEST_RATIO = 0.2
-EVALUATION_THRESHOLD = 5.0
-
-
 class Command(BaseCommand):
-    help = "Evaluate the grape leaf model on held-out image data and generate evaluation charts."
+    help = "Evaluate the grape leaf model on held-out test data and generate evaluation charts."
 
     def handle(self, *args, **options):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model = apps.get_app_config("base").model
+        app_config = apps.get_app_config("base")
+        model = app_config.model
+        model_variant = getattr(app_config, "model_variant", "original")
 
         if model is None:
             self.stderr.write(self.style.ERROR("No model is loaded. Run the project once to train or load the model."))
             return
 
-        dataset, source = self._get_evaluation_dataset()
+        dataset, source = self._get_evaluation_dataset(model_variant)
         if dataset is None:
-            self.stdout.write("No evaluation data folder (data/test_images, data/final_images or media) found; skipping evaluation.")
+            self.stdout.write(f"No test data found for '{model_variant}' model; skipping evaluation.")
             return
 
-        self._run_eval_with_dataloader(model, dataset, device, source)
+        website_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+        metrics_folder = get_eval_folder(model_variant)
+        metrics_output_dir = os.path.join(website_root, metrics_folder)
+        self._run_eval_with_dataloader(model, dataset, device, source, metrics_output_dir)
 
-    def _get_evaluation_dataset(self):
+    def _get_evaluation_dataset(self, model_variant):
         website_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
         transform = transforms.Compose([
             transforms.Resize((224, 224)),
             transforms.ToTensor(),
         ])
 
-        test_folder = os.path.join(website_root, "data", "test_images")
+        if model_variant not in MODEL_VARIANTS:
+            self.stdout.write(f"Unknown model variant '{model_variant}' for evaluation.")
+            return None, ""
+
+        test_folder_name = get_test_folder(model_variant)
+        test_folder = os.path.join(website_root, test_folder_name)
         if os.path.isdir(test_folder):
             try:
                 test_dataset = GrapeLeafDataset(images_folder=test_folder, transform=transform)
                 if len(test_dataset) > 0:
-                    return test_dataset, "data/test_images"
+                    return test_dataset, test_folder_name
             except Exception as e:
-                self.stdout.write(f"Evaluation skipped (data/test_images): {e}")
+                self.stdout.write(f"Evaluation skipped ({test_folder_name}): {e}")
 
-        for folder_name in ("data/final_images", "media"):
-            images_folder = os.path.join(website_root, folder_name)
-            if not os.path.isdir(images_folder):
-                continue
-
-            try:
-                full_dataset = GrapeLeafDataset(images_folder=images_folder, transform=transform)
-                if len(full_dataset) < 2:
-                    continue
-
-                n = len(full_dataset)
-                test_size = max(1, int(n * TEST_RATIO))
-                train_size = n - test_size
-                generator = torch.Generator().manual_seed(TEST_SPLIT_SEED)
-                _, test_subset = random_split(full_dataset, [train_size, test_size], generator=generator)
-                self.stdout.write(f"\nUsing test set: {len(test_subset)} images (20% of {n} from {folder_name})")
-                return test_subset, folder_name
-            except Exception as e:
-                self.stdout.write(f"Evaluation skipped ({folder_name}): {e}")
-
+        self.stdout.write(
+            f"No test images found in {test_folder_name}. "
+            f"Run split-train-validation.py to create train/validation/test folders."
+        )
         return None, ""
 
-    def _run_eval_with_dataloader(self, model, dataset, device, source=""):
+    def _run_eval_with_dataloader(self, model, dataset, device, source="", output_dir="."):
         dataloader = DataLoader(dataset, batch_size=8, shuffle=False)
         n = len(dataset)
         self.stdout.write(f"\nRunning model evaluation on test set ({n} images{f' from {source}' if source else ''})...")
         t0 = time.perf_counter()
-        evaluate_model_performance(model, dataloader, device, threshold=EVALUATION_THRESHOLD)
+        evaluate_model_performance(
+            model,
+            dataloader,
+            device,
+            threshold=EVALUATION_THRESHOLD,
+            output_dir=output_dir,
+        )
         elapsed = time.perf_counter() - t0
         self.stdout.write(f"Evaluation completed in {elapsed:.2f} s")

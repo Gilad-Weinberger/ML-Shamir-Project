@@ -2,65 +2,66 @@
 Run from the 'website' folder:
     python show_split.py
 
-Prints exactly which images are used for TRAINING and which for TESTING,
-matching the same split the model uses (seed=42, 80/20).
-No model is loaded, nothing is retrained.
+Prints which images are in:
+- data/final_images/train
+- data/final_images/validation
+- data/final_images/test
+
+Evaluation charts are saved to eval_images folders, not input images.
 """
 import os
-import torch
-from torch.utils.data import random_split
-from torchvision import transforms
+import sys
 
-# ── locate the images folder relative to this script ──────────────────────
-BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
-IMAGES_DIR  = os.path.join(BASE_DIR, "data", "final_images")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
 
-TEST_SPLIT_SEED = 42
-TEST_RATIO      = 0.2
+from model_config import MODEL_VARIANT, get_eval_folder, get_images_folder, get_test_folder
 
-# ── minimal inline dataset (no Django needed) ──────────────────────────────
-from torch.utils.data import Dataset
-from PIL import Image
 
-class _SimpleDataset(Dataset):
-    def __init__(self, folder):
-        self.folder = folder
-        self.files  = sorted([
-            f for f in os.listdir(folder)
-            if f.lower().endswith((".png", ".jpg", ".jpeg"))
-        ])
-    def __len__(self):
-        return len(self.files)
-    def __getitem__(self, idx):
-        return self.files[idx]   # just the filename
+def list_images(folder):
+    if not os.path.isdir(folder):
+        return []
+    return sorted(
+        f for f in os.listdir(folder)
+        if f.lower().endswith((".png", ".jpg", ".jpeg", ".bmp", ".gif"))
+        and os.path.isfile(os.path.join(folder, f))
+    )
 
-# ── build the split ────────────────────────────────────────────────────────
-dataset    = _SimpleDataset(IMAGES_DIR)
-n          = len(dataset)
-test_size  = max(1, int(n * TEST_RATIO))
-train_size = n - test_size
 
-generator = torch.Generator().manual_seed(TEST_SPLIT_SEED)
-train_subset, test_subset = random_split(dataset, [train_size, test_size], generator=generator)
+images_dir = get_images_folder(MODEL_VARIANT)
+train_dir = os.path.join(images_dir, "train")
+validation_dir = os.path.join(images_dir, "validation")
+test_dir = get_test_folder(MODEL_VARIANT)
+metrics_dir = get_eval_folder(MODEL_VARIANT)
 
-train_files = sorted([dataset.files[i] for i in train_subset.indices])
-test_files  = sorted([dataset.files[i] for i in test_subset.indices])
+train_files = list_images(train_dir)
+validation_files = list_images(validation_dir)
+test_files = list_images(test_dir)
 
-# ── print results ──────────────────────────────────────────────────────────
-print(f"\nTotal images : {n}")
-print(f"Train        : {len(train_files)}  ({100*len(train_files)//n}%)")
-print(f"Test         : {len(test_files)}   ({100*len(test_files)//n}%)")
+print(f"\nUsing MODEL_VARIANT='{MODEL_VARIANT}'")
+print(f"Dataset folder: {images_dir}")
+print(f"Train folder  : {len(train_files)}")
+print(f"Validation    : {len(validation_files)}")
+print(f"Test folder   : {len(test_files)}")
+print(f"Metrics output: {metrics_dir}/")
 
-print("\n" + "="*55)
-print(f"  TRAIN SET  ({len(train_files)} images)")
-print("="*55)
-for f in train_files:
-    print(f"  {f}")
+print("\n" + "=" * 55)
+print(f"  TRAIN FOLDER  ({len(train_files)} images)")
+print("=" * 55)
+for filename in train_files:
+    print(f"  {filename}")
 
-print("\n" + "="*55)
-print(f"  TEST SET   ({len(test_files)} images)")
-print("="*55)
-for f in test_files:
-    print(f"  {f}")
+print("\n" + "=" * 55)
+print(f"  VALIDATION FOLDER  ({len(validation_files)} images)")
+print("=" * 55)
+for filename in validation_files:
+    print(f"  {filename}")
 
-print()
+print("\n" + "=" * 55)
+print(f"  TEST FOLDER  ({len(test_files)} images)")
+print("=" * 55)
+for filename in test_files:
+    print(f"  {filename}")
+
+print("\nEvaluation uses test/ images. Charts are saved to the eval_images folder.")
