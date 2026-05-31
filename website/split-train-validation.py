@@ -279,7 +279,7 @@ def run_split(rebalance=False):
         f"Finished. Totals now: {final_train_count} training, "
         f"{final_validation_count} validation, {final_test_count} test."
     )
-    print("Evaluation metrics/charts are saved separately in eval_images folders.")
+    print("Evaluation metrics/charts are saved separately in evals/<variant>/ folders.")
 
 
 def main():

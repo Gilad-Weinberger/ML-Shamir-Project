@@ -13,7 +13,8 @@ if WEBSITE_ROOT not in sys.path:
     sys.path.insert(0, WEBSITE_ROOT)
 
 from model_config import EVALUATION_THRESHOLD, MODEL_VARIANTS, get_eval_folder, get_test_folder
-from base.views import GrapeLeafDataset, evaluate_model_performance
+from ml.dataset import GrapeLeafDataset
+from base.views import evaluate_model_performance
 
 
 class Command(BaseCommand):
@@ -26,7 +27,12 @@ class Command(BaseCommand):
         model_variant = getattr(app_config, "model_variant", "original")
 
         if model is None:
-            self.stderr.write(self.style.ERROR("No model is loaded. Run the project once to train or load the model."))
+            self.stderr.write(
+                self.style.ERROR(
+                    "No model is loaded. Train with 'python train_model.py' "
+                    "or download weights from Google Colab, then place the .pth in website/base/."
+                )
+            )
             return
 
         dataset, source = self._get_evaluation_dataset(model_variant)
@@ -67,9 +73,13 @@ class Command(BaseCommand):
         return None, ""
 
     def _run_eval_with_dataloader(self, model, dataset, device, source="", output_dir="."):
-        dataloader = DataLoader(dataset, batch_size=8, shuffle=False)
+        dataloader = DataLoader(dataset, batch_size=64, shuffle=False)
         n = len(dataset)
-        self.stdout.write(f"\nRunning model evaluation on test set ({n} images{f' from {source}' if source else ''})...")
+        self.stdout.write(
+            f"\nRunning model evaluation on test set ({n} images{f' from {source}' if source else ''})..."
+        )
+        self.stdout.write(f"Device: {device} | Output dir: {output_dir}")
+        self.stdout.flush()
         t0 = time.perf_counter()
         evaluate_model_performance(
             model,

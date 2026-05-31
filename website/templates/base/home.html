@@ -32,7 +32,12 @@
         </div>
 
         <div class="panel results-panel">
-          {% if prediction is not None %}
+          {% if model_error %}
+          <div class="result-card">
+            <span class="result-label">Model unavailable</span>
+            <p>{{ model_error }}</p>
+          </div>
+          {% elif prediction is not None %}
           <div class="result-card">
             <span class="result-label">
               Estimated percentage of Downy Mildew in the leaf
@@ -44,14 +49,25 @@
             <span class="empty-icon" aria-hidden="true"></span>
             <p>Results will appear here after analysis.</p>
           </div>
-          {% endif %} {% if uploaded_image_url %}
+          {% endif %}
+
+          {% if uploaded_image_url %}
           <div class="uploaded-image">
-            <h2>Sample preview</h2>
-            <img
-              src="{{ uploaded_image_url }}"
-              alt="Uploaded leaf sample"
-              class="img-fluid"
-            />
+            <div class="preview-card">
+              <div class="preview-frame">
+                <img
+                  src="{{ uploaded_image_url }}"
+                  alt="Uploaded leaf sample{% if uploaded_image_name %}: {{ uploaded_image_name }}{% endif %}"
+                  class="preview-image"
+                />
+              </div>
+              {% if uploaded_image_name %}
+              <div class="preview-meta">
+                <span class="preview-meta-label">Uploaded file</span>
+                <span class="preview-meta-name" title="{{ uploaded_image_name }}">{{ uploaded_image_name }}</span>
+              </div>
+              {% endif %}
+            </div>
           </div>
           {% endif %}
         </div>

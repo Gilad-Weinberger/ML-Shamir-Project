@@ -12,30 +12,27 @@ import os
 # Each dataset is split into:
 #   train/ validation/ test/
 #
-# Evaluation runs on test/ images and saves charts to eval_folder.
+# Evaluation runs on test/ images and saves charts to evals/<variant>/.
 # ============================================================
 MODEL_VARIANT = "5deg"
+EVALS_FOLDER = "evals"
 
 MODEL_VARIANTS = {
     "original": {
         "model_file": "grape_leaf_model.pth",
         "images_folder": "data/final_images",
-        "eval_folder": "eval_images",
     },
     "original_test": {
         "model_file": "grape_leaf_model_test.pth",
         "images_folder": "data/final_images",
-        "eval_folder": "eval_images_test",
     },
     "test_2": {
         "model_file": "grape_leaf_model_test_2.pth",
         "images_folder": "data/final_images",
-        "eval_folder": "eval_images_test_2",
     },
     "5deg": {
         "model_file": "grape_leaf_model_5deg.pth",
         "images_folder": "data/final_images_5deg",
-        "eval_folder": "eval_images_5deg",
     },
 }
 
@@ -74,7 +71,9 @@ def get_images_folder(variant=None):
 
 def get_eval_folder(variant=None):
     """Output folder for evaluation charts/metrics only."""
-    return get_variant_config(variant)["eval_folder"]
+    selected_variant = variant or MODEL_VARIANT
+    get_variant_config(selected_variant)
+    return os.path.join(EVALS_FOLDER, selected_variant)
 
 
 def get_train_folder(variant=None):

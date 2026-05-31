@@ -23,7 +23,7 @@ MODEL_VARIANT = "5deg"
 This one variable controls:
 - which .pth file is loaded/trained
 - which dataset folder is split and used
-- which eval_images folder receives evaluation charts/metrics
+- which evals/<variant>/ folder receives evaluation charts/metrics
 
 
 **RUN THE PROJECT**
@@ -42,22 +42,22 @@ evaluation reads test images from:
 - 5deg                          -> data/final_images_5deg/test
 
 evaluation charts/metrics are saved to:
-- original      -> eval_images
-- original_test -> eval_images_test
-- test_2        -> eval_images_test_2
-- 5deg          -> eval_images_5deg
+- original      -> evals/original
+- original_test -> evals/original_test
+- test_2        -> evals/test_2
+- 5deg          -> evals/5deg
 run:
 py manage.py evaluate_model
 
 this prints the model evaluation results and saves charts inside the matching eval folder:
-eval_images/evaluation_results.png
-eval_images/evaluation_accuracy_by_margin.png
-eval_images_test/evaluation_results.png
-eval_images_test/evaluation_accuracy_by_margin.png
-eval_images_test_2/evaluation_results.png
-eval_images_test_2/evaluation_accuracy_by_margin.png
-eval_images_5deg/evaluation_results.png
-eval_images_5deg/evaluation_accuracy_by_margin.png
+evals/original/evaluation_results.png
+evals/original/evaluation_accuracy_by_margin.png
+evals/original_test/evaluation_results.png
+evals/original_test/evaluation_accuracy_by_margin.png
+evals/test_2/evaluation_results.png
+evals/test_2/evaluation_accuracy_by_margin.png
+evals/5deg/evaluation_results.png
+evals/5deg/evaluation_accuracy_by_margin.png
 
 
 
@@ -74,8 +74,11 @@ then run the website regularly.
 
 
 ** IMPORTANT ALERT **
-in case of the model file gone, but the images still exist, run the project regularly.
-the model file will be created again (might take some time...) and be saved the exact same way it was saved before.
+If the model file is missing but images still exist, train the model separately:
+  py manage.py train_model
+  python train_model.py --variant 5deg --device auto --epochs 60 --batch-size 64
+Or use Google Colab GPU training — see CLOUD_TRAINING.md and colab/train_grape_leaf.ipynb.
+Django no longer trains on runserver; it only loads an existing .pth file.
 
 Both the original and 5-degree models use the same training method:
 - physically separated folders: train/, validation/, and test/
@@ -86,7 +89,7 @@ Both the original and 5-degree models use the same training method:
 - validation loss monitoring
 - early stopping after 5 epochs without improvement
 - saves the best validation weights to the matching .pth file
-- eval_images folders store evaluation charts/metrics only
+- evals/<variant>/ folders store evaluation charts/metrics only
 
 
 **SPLIT DATA INTO train/, validation/, AND test/ SUBFOLDERS**
@@ -118,6 +121,52 @@ then re-splits all images into train/validation/test again.
 After rebalancing, retrain the model because the training set changed.
 
 
+**TRAIN ON GOOGLE COLAB (FREE T4 GPU)**
+
+Use this to train the 5deg model (or other variants) without waiting hours on CPU.
+
+Local prep:
+1. Set MODEL_VARIANT = "5deg" in model_config.py
+2. Run split-train-validation.py if train/validation/test folders do not exist
+3. Zip data/final_images_5deg/ -> final_images_5deg.zip
+4. Zip website/ml/ -> ml.zip
+
+On Colab:
+1. Upload colab/train_grape_leaf.ipynb to colab.research.google.com
+2. Runtime -> Change runtime type -> T4 GPU
+3. Run all cells (upload dataset zip, upload train_model.py + model_config.py + ml.zip, install deps, train, download .pth)
+
+Back locally:
+1. Place downloaded .pth in website/base/
+2. py manage.py runserver
+3. py manage.py evaluate_model
+
+Full guide: CLOUD_TRAINING.md
+
+
+**TRAIN LOCALLY (CLI)**
+
+From the website/ directory — use this instead of runserver when you need to train:
+
+Option A — Django management command (recommended):
+py manage.py train_model --variant 5deg --device auto --epochs 60 --batch-size 64
+
+Option B — standalone script (same logic, no Django needed):
+python train_model.py --variant 5deg --device auto --epochs 60 --batch-size 64
+
+Options:
+--variant     model variant (default from model_config.py)
+--device      auto, cuda, or cpu
+--epochs      max epochs (default from model_config.py)
+--batch-size  batch size (default: 64)
+--output      custom .pth path (default: base/<variant model file>)
+
+After training, start the site:
+py manage.py runserver
+
+Weights are saved to base/{model_file} — same path Django loads on runserver.
+
+
 **THREE SEPARATE DATA GROUPS**
 
 Training uses:
@@ -136,10 +185,10 @@ or for 5deg:
 - data/final_images_5deg/test
 
 Evaluation charts/metrics are saved to:
-- eval_images
-- eval_images_test
-- eval_images_test_2
-- eval_images_5deg
+- evals/original
+- evals/original_test
+- evals/test_2
+- evals/5deg
 
 
 **TEST NEW TRAINING ON ORIGINAL DATA WITHOUT REPLACING grape_leaf_model.pth**
@@ -151,9 +200,9 @@ but keep your current base/grape_leaf_model.pth untouched.
 2. Set:
 MODEL_VARIANT = "original_test"
 3. Run:
-py manage.py runserver
+python train_model.py
 
-This trains or loads:
+This trains:
 - base/grape_leaf_model_test.pth
 - data/final_images
 
@@ -179,9 +228,9 @@ grape_leaf_model.pth or grape_leaf_model_test.pth.
 2. Set:
 MODEL_VARIANT = "test_2"
 3. Run:
-py manage.py runserver
+python train_model.py
 
-This trains or loads:
+This trains:
 - base/grape_leaf_model_test_2.pth
 - data/final_images
 
@@ -190,7 +239,7 @@ To evaluate:
 2. Run:
 py manage.py evaluate_model
 
-Charts are saved to eval_images_test_2/
+Charts are saved to evals/test_2/
 
 
 **CREATE THE 5-DEGREE AUGMENTED DATASET AND MODEL**
@@ -200,28 +249,28 @@ This keeps the current/original model and dataset:
 - data/final_images/train
 - data/final_images/validation
 - data/final_images/test
-- eval_images for charts
+- evals/original for charts
 
 The 5-degree version uses:
 - base/grape_leaf_model_5deg.pth
 - data/final_images_5deg/train
 - data/final_images_5deg/validation
 - data/final_images_5deg/test
-- eval_images_5deg for charts
+- evals/5deg for charts
 
 The original_test version uses:
 - base/grape_leaf_model_test.pth
 - data/final_images/train
 - data/final_images/validation
 - data/final_images/test
-- eval_images_test for charts
+- evals/original_test for charts
 
 The test_2 version uses:
 - base/grape_leaf_model_test_2.pth
 - data/final_images/train
 - data/final_images/validation
 - data/final_images/test
-- eval_images_test_2 for charts
+- evals/test_2 for charts
 
 To create the 5-degree augmented training images:
 1. Add your source images to data/images.
@@ -243,7 +292,9 @@ MODEL_VARIANT = "5deg"
 3. Run:
 py manage.py runserver
 
-If base/grape_leaf_model_5deg.pth does not exist yet, the project will train it from data/final_images_5deg and save it.
+If base/grape_leaf_model_5deg.pth does not exist yet, train it with:
+python train_model.py --variant 5deg
+Or use Google Colab — see CLOUD_TRAINING.md.
 
 To go back to the original/current model:
 1. Open model_config.py.
@@ -270,4 +321,4 @@ py manage.py evaluate_model
 
 Do not delete or empty data/final_images when using the 5-degree method.
 Do not delete base/grape_leaf_model.pth when using the 5-degree method.
-eval_images folders are for evaluation charts/metrics output only.
+evals/ folders are for evaluation charts/metrics output only.

@@ -7,7 +7,11 @@ body {
   margin: 0;
   padding: 12px;
   background:
-    radial-gradient(circle at top left, rgba(75, 115, 86, 0.14), transparent 34%),
+    radial-gradient(
+      circle at top left,
+      rgba(75, 115, 86, 0.14),
+      transparent 34%
+    ),
     linear-gradient(135deg, #f3f7f1 0%, #eef4f5 100%);
   color: #17352b;
   font-family: Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -81,6 +85,7 @@ h2 {
 }
 
 .panel {
+  min-width: 0;
   min-height: 0;
   padding: 20px;
   background: #ffffff;
@@ -148,7 +153,9 @@ form {
   cursor: pointer;
   font-size: 1rem;
   font-weight: 700;
-  transition: background-color 0.2s ease, transform 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .btn-primary:hover {
@@ -159,6 +166,8 @@ form {
 .results-panel {
   display: grid;
   gap: 14px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .result-card {
@@ -209,22 +218,67 @@ form {
 }
 
 .uploaded-image {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.preview-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 12px;
+  background: #f7faf7;
+  border: 1px solid #dfe8e2;
+  border-radius: 16px;
+}
+
+.preview-frame {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 100px;
+  height: 100px;
+  overflow: hidden;
+  background: #f4f7f4;
+  border: 1px solid #d4dfd7;
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.65);
+}
+
+.preview-image {
+  display: block;
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  object-position: center;
+  background: #f4f7f4;
+}
+
+.preview-meta {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
+  min-width: 0;
 }
 
-.uploaded-image h2 {
-  margin-bottom: 0;
+.preview-meta-label {
+  color: #4d745d;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-.uploaded-image .img-fluid {
-  width: 100%;
-  max-height: clamp(120px, 28vh, 220px);
-  object-fit: contain;
-  background: #f4f7f4;
-  border: 1px solid #e3ebe5;
-  border-radius: 18px;
+.preview-meta-name {
+  overflow: hidden;
+  min-width: 0;
+  color: #17352b;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.4;
+  word-break: break-all;
 }
 
 @media (max-width: 760px) {
@@ -251,7 +305,4 @@ form {
     padding: 16px;
   }
 
-  .uploaded-image .img-fluid {
-    max-height: 18vh;
-  }
 }

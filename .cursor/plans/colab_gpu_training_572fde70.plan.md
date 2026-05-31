@@ -61,13 +61,14 @@ flowchart TD
 
 Create [`website/ml/`](website/ml/) and move code out of [`website/base/views.py`](website/base/views.py):
 
-| New file | Contents |
-|----------|----------|
-| [`website/ml/model.py`](website/ml/model.py) | `GrapeLeafRegressor` (lines 29–70 of views.py) |
-| [`website/ml/dataset.py`](website/ml/dataset.py) | `GrapeLeafDataset` (lines 73–121) |
-| [`website/ml/train.py`](website/ml/train.py) | `train_grape_leaf_model()` (lines 166–291) |
+| New file                                         | Contents                                       |
+| ------------------------------------------------ | ---------------------------------------------- |
+| [`website/ml/model.py`](website/ml/model.py)     | `GrapeLeafRegressor` (lines 29–70 of views.py) |
+| [`website/ml/dataset.py`](website/ml/dataset.py) | `GrapeLeafDataset` (lines 73–121)              |
+| [`website/ml/train.py`](website/ml/train.py)     | `train_grape_leaf_model()` (lines 166–291)     |
 
 Update imports in:
+
 - [`website/base/views.py`](website/base/views.py) — import from `ml.*`, keep inference/evaluation helpers
 - [`website/base/apps.py`](website/base/apps.py) — import `GrapeLeafRegressor` from `ml.model`
 - [`website/base/management/commands/evaluate_model.py`](website/base/management/commands/evaluate_model.py) — import `GrapeLeafDataset` from `ml.dataset`
@@ -90,7 +91,7 @@ python train_model.py --variant 5deg --device cuda
 Change [`website/base/apps.py`](website/base/apps.py):
 
 - **If `.pth` exists** → load it (unchanged)
-- **If missing** → log a clear message: *"Run `python train_model.py` locally or in Colab"* — do **not** train on `runserver`
+- **If missing** → log a clear message: _"Run `python train_model.py` locally or in Colab"_ — do **not** train on `runserver`
 
 ### 4. GPU training optimizations
 
@@ -113,6 +114,7 @@ tqdm
 ```
 
 Install on Colab via PyTorch CUDA index:
+
 ```bash
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
 pip install pillow numpy matplotlib tqdm
@@ -141,16 +143,19 @@ Update [`website/commands.txt`](website/commands.txt) — add Colab training sec
 ## Your Workflow (after implementation)
 
 **One-time local prep:**
+
 1. Set `MODEL_VARIANT = "5deg"` in [`model_config.py`](website/model_config.py)
 2. Confirm `data/final_images_5deg/train/` and `validation/` exist (run `split-train-validation.py` if needed)
 3. Zip `data/final_images_5deg/` → `final_images_5deg.zip`
 
 **On Google Colab:**
+
 1. Go to [colab.research.google.com](https://colab.research.google.com) → upload `train_grape_leaf.ipynb`
 2. Runtime → Change runtime type → **T4 GPU**
 3. Run all cells (~5–15 min)
 
 **Back on your machine:**
+
 1. Place downloaded `.pth` in `website/base/`
 2. `py manage.py runserver` — loads weights instantly, no training
 3. `py manage.py evaluate_model` — generates charts in `eval_images_5deg/`
@@ -159,19 +164,19 @@ Update [`website/commands.txt`](website/commands.txt) — add Colab training sec
 
 ## Files Summary
 
-| File | Action |
-|------|--------|
-| `website/ml/model.py` | Create |
-| `website/ml/dataset.py` | Create |
-| `website/ml/train.py` | Create |
-| `website/ml/__init__.py` | Create |
-| `website/train_model.py` | Create |
-| `website/requirements-gpu.txt` | Create |
-| `website/colab/train_grape_leaf.ipynb` | Create |
-| `website/CLOUD_TRAINING.md` | Create |
-| `website/base/views.py` | Refactor imports |
-| `website/base/apps.py` | Load-only, no auto-train |
-| `website/commands.txt` | Add Colab section |
+| File                                   | Action                   |
+| -------------------------------------- | ------------------------ |
+| `website/ml/model.py`                  | Create                   |
+| `website/ml/dataset.py`                | Create                   |
+| `website/ml/train.py`                  | Create                   |
+| `website/ml/__init__.py`               | Create                   |
+| `website/train_model.py`               | Create                   |
+| `website/requirements-gpu.txt`         | Create                   |
+| `website/colab/train_grape_leaf.ipynb` | Create                   |
+| `website/CLOUD_TRAINING.md`            | Create                   |
+| `website/base/views.py`                | Refactor imports         |
+| `website/base/apps.py`                 | Load-only, no auto-train |
+| `website/commands.txt`                 | Add Colab section        |
 
 ---
 

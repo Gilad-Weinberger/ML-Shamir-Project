@@ -7,7 +7,7 @@ Prints which images are in:
 - data/final_images/validation
 - data/final_images/test
 
-Evaluation charts are saved to eval_images folders, not input images.
+Evaluation charts are saved to evals/<variant>/ folders, not input images.
 """
 import os
 import sys
@@ -64,4 +64,4 @@ print("=" * 55)
 for filename in test_files:
     print(f"  {filename}")
 
-print("\nEvaluation uses test/ images. Charts are saved to the eval_images folder.")
+print(f"\nEvaluation uses test/ images. Charts are saved to {metrics_dir}/.")

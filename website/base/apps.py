@@ -7,17 +7,14 @@ WEBSITE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if WEBSITE_ROOT not in sys.path:
     sys.path.insert(0, WEBSITE_ROOT)
 
-from model_config import MODEL_VARIANT, get_images_folder, get_model_file, get_variant_config
-from .views import (
-    train_grape_leaf_model,
-    GrapeLeafRegressor,
-)
+from model_config import MODEL_VARIANT, get_model_file, get_variant_config
+from ml.model import GrapeLeafRegressor
 
 
 class BaseConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'base'
-    model = None  
+    model = None
     model_variant = MODEL_VARIANT
     images_folder = None
 
@@ -26,7 +23,8 @@ class BaseConfig(AppConfig):
         selected_variant = get_variant_config(MODEL_VARIANT)
         BaseConfig.model_variant = MODEL_VARIANT
         BaseConfig.images_folder = selected_variant["images_folder"]
-        model_path = os.path.join(os.path.dirname(__file__), get_model_file(MODEL_VARIANT))
+        model_file = get_model_file(MODEL_VARIANT)
+        model_path = os.path.join(os.path.dirname(__file__), model_file)
 
         if os.path.exists(model_path):
             print(f"Loading pre-trained model ({MODEL_VARIANT})...")
@@ -35,10 +33,9 @@ class BaseConfig(AppConfig):
             model.eval()
             BaseConfig.model = model
         else:
-            print(f"No pre-trained model found for '{MODEL_VARIANT}'. Training new model...")
-            BaseConfig.model, _ = train_grape_leaf_model(
-                device,
-                images_folder=BaseConfig.images_folder,
-                model_variant=MODEL_VARIANT,
+            BaseConfig.model = None
+            print(
+                f"No pre-trained model found for '{MODEL_VARIANT}'. "
+                f"Place base/{model_file} in website/base/, or run "
+                f"'python train_model.py' locally or in Google Colab."
             )
-            torch.save(BaseConfig.model.state_dict(), model_path)
