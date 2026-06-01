@@ -57,9 +57,16 @@
     previewFilename.title = file.name;
   }
 
-  function setAnalyzing(isAnalyzing) {
+  function isResultView() {
+    return lastStableState === "result" || lastStableState === "error";
+  }
+
+  function setAnalyzing(isAnalyzing, isReplacing) {
     fileInput.disabled = isAnalyzing;
     retryBtn.disabled = isAnalyzing;
+    if (isReplacing) {
+      resultsStatus.classList.toggle("is-reanalyzing", isAnalyzing);
+    }
   }
 
   function showResultLoading() {
@@ -108,26 +115,27 @@
       return;
     }
 
+    const isReplacing = isResultView();
+
     if (!isImageFile(file)) {
-      setPreview(null);
+      if (!isReplacing) {
+        setPreview(null);
+      }
       showError("Please choose a valid image file.");
       return;
     }
 
-    setPreview(file);
-    showResultLoading();
     analysisGeneration += 1;
     const generation = analysisGeneration;
-    runAnalysis(file, generation);
-  }
 
-  function resetWorkspace() {
-    analysisGeneration += 1;
-    fileInput.value = "";
-    setPreview(null);
-    setZoneState("idle");
-    resultsStatus.className = "result-card";
-    resultsStatus.innerHTML = "";
+    if (isReplacing) {
+      setAnalyzing(true, true);
+    } else {
+      setPreview(file);
+      showResultLoading();
+    }
+
+    runAnalysis(file, generation, isReplacing);
   }
 
   function uploadInBackground(file, generation) {
@@ -162,8 +170,10 @@
       });
   }
 
-  function runAnalysis(file, generation) {
-    setAnalyzing(true);
+  function runAnalysis(file, generation, isReplacing) {
+    if (!isReplacing) {
+      setAnalyzing(true, false);
+    }
 
     const body = new FormData();
     body.append("csrfmiddlewaretoken", getCsrfToken());
@@ -187,6 +197,9 @@
           showError(result.data.error || "Prediction failed.");
           return;
         }
+        setPreview(file);
+        previewFilename.textContent = file.name;
+        previewFilename.title = file.name;
         showPrediction(result.data.prediction);
         uploadInBackground(file, generation);
       })
@@ -198,7 +211,7 @@
       })
       .finally(function () {
         if (generation === analysisGeneration) {
-          setAnalyzing(false);
+          setAnalyzing(false, isReplacing);
         }
       });
   }
@@ -206,14 +219,13 @@
   fileInput.addEventListener("change", function () {
     const file = fileInput.files && fileInput.files[0];
     if (!file) {
-      resetWorkspace();
       return;
     }
     processFile(file);
   });
 
   retryBtn.addEventListener("click", function () {
-    resetWorkspace();
+    fileInput.value = "";
     fileInput.click();
   });
 

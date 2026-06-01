@@ -241,6 +241,40 @@ h1 {
   margin-bottom: 0;
 }
 
+.result-card.is-reanalyzing {
+  position: relative;
+}
+
+.result-card.is-reanalyzing::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(23, 53, 43, 0.18);
+  pointer-events: none;
+}
+
+.result-card.is-reanalyzing .result-value,
+.result-card.is-reanalyzing .result-label,
+.result-card.is-reanalyzing p {
+  opacity: 0.72;
+}
+
+.result-card.is-reanalyzing::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  border: 3px solid rgba(255, 255, 255, 0.28);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
 .spinner-in-card {
   border-color: rgba(255, 255, 255, 0.28);
   border-top-color: #ffffff;
