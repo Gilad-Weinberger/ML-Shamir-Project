@@ -5,7 +5,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Downy Mildew Leaf Assessment</title>
-    <!-- Link to the compiled CSS file -->
     <link rel="stylesheet" href="{% static 'css/base/home.css' %}" />
   </head>
   <body>
@@ -22,62 +21,47 @@
         <div class="panel upload-panel">
           <h2>Upload sample</h2>
           <p class="panel-note">Use a clear, well-lit leaf image.</p>
-          <form method="post" enctype="multipart/form-data">
+          <form id="upload-form" enctype="multipart/form-data">
             {% csrf_token %}
             <div class="form-group">
-              {{ form.image.label_tag }} {{ form.image }}
+              {{ form.image.label_tag }}
+              {{ form.image }}
             </div>
-            <button type="submit" class="btn-primary">Analyze image</button>
+            <button type="submit" class="btn-primary" id="analyze-btn">
+              Analyze image
+            </button>
           </form>
         </div>
 
-        <div class="panel results-panel">
-          {% if model_error %}
-          <div class="result-card">
-            <span class="result-label">Model unavailable</span>
-            <p>{{ model_error }}</p>
-          </div>
-          {% elif prediction is not None %}
-          <div class="result-card">
-            <span class="result-label">
-              Estimated percentage of Downy Mildew in the leaf
-            </span>
-            <strong class="result-value">{{ prediction }}%</strong>
-          </div>
-          {% if upload_error %}
-          <div class="result-card">
-            <span class="result-label">Preview unavailable</span>
-            <p>{{ upload_error }}</p>
-          </div>
-          {% endif %}
-          {% else %}
-          <div class="empty-state">
+        <div class="panel results-panel" id="results-panel">
+          <div id="results-status" class="empty-state" aria-live="polite">
             <span class="empty-icon" aria-hidden="true"></span>
             <p>Results will appear here after analysis.</p>
           </div>
-          {% endif %}
 
-          {% if uploaded_image_url %}
-          <div class="uploaded-image">
+          <div id="preview-container" class="uploaded-image hidden" hidden>
             <div class="preview-card">
               <div class="preview-frame">
                 <img
-                  src="{{ uploaded_image_url }}"
-                  alt="Uploaded leaf sample{% if uploaded_image_name %}: {{ uploaded_image_name }}{% endif %}"
+                  id="preview-image"
+                  src=""
+                  alt="Selected leaf sample"
                   class="preview-image"
                 />
               </div>
-              {% if uploaded_image_name %}
               <div class="preview-meta">
-                <span class="preview-meta-label">Uploaded file</span>
-                <span class="preview-meta-name" title="{{ uploaded_image_name }}">{{ uploaded_image_name }}</span>
+                <span class="preview-meta-label">Selected file</span>
+                <span
+                  id="preview-filename"
+                  class="preview-meta-name"
+                  title=""
+                ></span>
               </div>
-              {% endif %}
             </div>
           </div>
-          {% endif %}
         </div>
       </section>
     </main>
+    <script src="{% static 'js/base/home.js' %}"></script>
   </body>
 </html>

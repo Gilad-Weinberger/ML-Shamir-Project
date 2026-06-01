@@ -163,6 +163,16 @@ form {
   transform: translateY(-1px);
 }
 
+.btn-primary:disabled {
+  opacity: 0.72;
+  cursor: wait;
+  transform: none;
+}
+
+.btn-primary.is-loading {
+  position: relative;
+}
+
 .results-panel {
   display: grid;
   gap: 14px;
@@ -207,6 +217,34 @@ form {
 
 .empty-state p {
   margin-bottom: 0;
+}
+
+.empty-state.is-loading {
+  flex-direction: column;
+  gap: 12px;
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid #c4d1c8;
+  border-top-color: #2f684f;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.result-card-error {
+  background: linear-gradient(135deg, #4a2c2c 0%, #7a4040 100%);
+}
+
+.hidden {
+  display: none;
 }
 
 .empty-icon {

@@ -100,6 +100,26 @@ def predict_local(model, image_bytes):
     return result
 
 
+def _compress_image_for_remote(image_bytes, max_size=1024, quality=85):
+    """Resize large uploads before sending to HF Space to reduce transfer time."""
+    from io import BytesIO
+
+    from PIL import Image
+
+    t0 = time.perf_counter()
+    with Image.open(BytesIO(image_bytes)) as pil_image:
+        if max(pil_image.size) <= max_size:
+            _log_timing("remote_compress_image", (time.perf_counter() - t0) * 1000)
+            return image_bytes
+        pil_image = pil_image.convert("RGB")
+        pil_image.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+        buffer = BytesIO()
+        pil_image.save(buffer, format="JPEG", quality=quality, optimize=True)
+        compressed = buffer.getvalue()
+    _log_timing("remote_compress_image", (time.perf_counter() - t0) * 1000)
+    return compressed
+
+
 def _parse_remote_result(result):
     if isinstance(result, dict):
         if result.get("error"):
@@ -119,6 +139,7 @@ def predict_remote(image_bytes, hf_url=None, token=None):
         raise ValueError("HF_INFERENCE_URL is not set")
 
     token = token or get_hf_token()
+    image_bytes = _compress_image_for_remote(image_bytes)
 
     suffix = ".jpg"
     tmp_path = None
