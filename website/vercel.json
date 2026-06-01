@@ -2,10 +2,5 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "pip install --no-cache-dir -r requirements.txt",
-  "buildCommand": "python manage.py collectstatic --noinput",
-  "functions": {
-    "website/wsgi.py": {
-      "excludeFiles": "{evals/**,data/**,eval_images_test/**,eval_images_test_2/**,**/__pycache__/**,**/*.pyc,**/*.pth,ml/**,multiply-images*.py,split-train-validation.py,show_split.py,train_model.py,requirements-local.txt,requirements-gpu.txt,deploy/**}"
-    }
-  }
+  "buildCommand": "python manage.py collectstatic --noinput"
 }

@@ -9,6 +9,7 @@ current_data.csv
 
 /website/media/
 /website/.env
+/website/.env.local
 
 /website/guide.html
 

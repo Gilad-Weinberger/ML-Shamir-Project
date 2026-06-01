@@ -91,6 +91,8 @@ If the Space or model repo is private, also set `HF_TOKEN`.
 
 Do **not** add a `vercel.json` or `.vercelignore` at the **repo root** — that conflicts with Root Directory `website`.
 
+Django routing uses `pyproject.toml` → `[tool.vercel] entrypoint = "website.wsgi:application"`. Do **not** add a `functions.website/wsgi.py` block in `vercel.json` (Vercel CLI 54+ rejects it).
+
 ---
 
 ## Step 4 — Environment variables
@@ -100,9 +102,9 @@ Set these in **two places** depending on where you run the app:
 | Where you run | Where to put env vars |
 |---------------|------------------------|
 | **Production (Vercel)** | Vercel dashboard → your project → **Settings → Environment Variables** |
-| **Local (`py manage.py runserver`)** | Copy `deploy/vercel/.env.example` → **`website/.env`** (auto-loaded by Django) |
+| **Local (`py manage.py runserver`)** | Copy **`website/.env.example`** → **`website/.env.local`** (auto-loaded by Django) |
 
-Use [`.env.example`](.env.example) as a copy template. Apply vars to **Production** (and **Preview** if you want preview deploys to work the same way).
+Use [`website/.env.example`](../../.env.example) as the local template. For Vercel, set the same keys in the dashboard (**Production** / **Preview**).
 
 ---
 
@@ -250,7 +252,7 @@ cd website
 copy deploy\vercel\.env.example .env
 ```
 
-2. Edit **`website/.env`** with your Supabase and HF keys (see variable guide above).
+2. Edit **`website/.env.local`** with your Supabase and HF keys (see variable guide above).
 
 3. Install and run:
 
@@ -333,12 +335,12 @@ Add your domain in Vercel → **Domains**, then append it to `ALLOWED_HOSTS`.
 
 ### Local development
 
-Copy [`deploy/vercel/.env.example`](../vercel/.env.example) to **`website/.env`** and fill in your Supabase + HF values. Django loads `website/.env` automatically on startup.
+Copy [`website/.env.example`](../../.env.example) to **`website/.env.local`** and fill in your Supabase + HF values. Django loads `.env.local` (or `.env`) on startup.
 
 ```bash
 cd website
-copy deploy\vercel\.env.example .env   # Windows
-# edit .env with your keys
+copy .env.example .env.local   # Windows
+# edit .env.local with your keys
 pip install -r requirements-local.txt
 py manage.py runserver
 ```
@@ -378,7 +380,8 @@ For local inference without Vercel, either set `HF_INFERENCE_URL` or keep a `.pt
 | File | Purpose |
 |------|---------|
 | `GUIDE.md` | This guide |
-| `.env.example` | Environment variable template |
+| `website/.env.example` | Local env template (copy to `website/.env.local`) |
+| `deploy/vercel/.env.example` | Same keys, Vercel-oriented comments |
 | `supabase_setup.sql` | Public bucket, policies, 48h purge cron |
 | `supabase_cron_cleanup.sql` | Cron job only (if setup already ran) |
 | `requirements-vercel.txt` | Mirror of root `requirements.txt` (Vercel / production) |
