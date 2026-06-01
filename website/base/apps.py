@@ -8,6 +8,8 @@ if WEBSITE_ROOT not in sys.path:
 
 from model_config import MODEL_VARIANT, get_model_file, get_variant_config
 
+from .inference import is_remote_inference_configured
+
 
 class BaseConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
@@ -22,19 +24,22 @@ class BaseConfig(AppConfig):
         BaseConfig.images_folder = selected_variant["images_folder"]
         model_file = get_model_file(MODEL_VARIANT)
 
-        if os.environ.get("HF_INFERENCE_URL", "").strip():
+        if os.environ.get("VERCEL") == "1":
             BaseConfig.model = None
-            print("Remote inference enabled (HF_INFERENCE_URL); skipping local model load.")
+            print("Vercel deployment: inference via HF_INFERENCE_URL.")
             return
 
         try:
             import torch
         except ImportError:
             BaseConfig.model = None
-            print(
-                "PyTorch not installed. Set HF_INFERENCE_URL for remote inference, "
-                "or install torch for local inference."
-            )
+            if is_remote_inference_configured():
+                print("PyTorch not installed; will use HF_INFERENCE_URL for inference.")
+            else:
+                print(
+                    "PyTorch not installed. Install torch for local inference "
+                    "or set HF_INFERENCE_URL."
+                )
             return
 
         from .model_loader import load_model
@@ -43,8 +48,14 @@ class BaseConfig(AppConfig):
         model = load_model(model_file, device)
 
         if model is not None:
-            print(f"Loaded pre-trained model ({MODEL_VARIANT}).")
+            print(f"Loaded local model ({MODEL_VARIANT}).")
             BaseConfig.model = model
+        elif is_remote_inference_configured():
+            BaseConfig.model = None
+            print(
+                f"No local model at base/{model_file}; "
+                "will fall back to HF_INFERENCE_URL for predictions."
+            )
         else:
             BaseConfig.model = None
             print(

@@ -83,13 +83,13 @@ def predict_remote(image_bytes, hf_url=None, token=None):
 
 
 def predict(image_bytes, model=None, hf_url=None, token=None):
+    if model is not None:
+        return predict_local(model, image_bytes)
+
     if is_remote_inference_configured() or hf_url:
         return predict_remote(image_bytes, hf_url=hf_url, token=token)
 
-    if model is None:
-        raise RuntimeError(
-            "No model loaded and HF_INFERENCE_URL is not set. "
-            "Place a .pth file in website/base/ or configure HF_INFERENCE_URL."
-        )
-
-    return predict_local(model, image_bytes)
+    raise RuntimeError(
+        "No model loaded and HF_INFERENCE_URL is not set. "
+        "Place a .pth file in website/base/ or configure HF_INFERENCE_URL."
+    )
