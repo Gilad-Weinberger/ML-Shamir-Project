@@ -18,44 +18,78 @@
       </section>
 
       <section class="workspace" aria-label="Leaf assessment workspace">
-        <div class="panel upload-panel">
-          <h2>Upload sample</h2>
-          <p class="panel-note">Use a clear, well-lit leaf image.</p>
+        <div class="drop-zone is-idle" id="drop-zone">
           <form id="upload-form" enctype="multipart/form-data">
             {% csrf_token %}
-            <div class="form-group">
-              {{ form.image.label_tag }}
-              {{ form.image }}
+            {{ form.image }}
+
+            <label
+              for="id_image"
+              class="drop-zone-idle"
+              id="drop-idle"
+            >
+              <span class="drop-icon" aria-hidden="true">
+                <svg
+                  width="40"
+                  height="40"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M12 16V4M12 4L8 8M12 4L16 8"
+                    stroke="currentColor"
+                    stroke-width="1.75"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M4 16V17C4 18.1046 4.89543 19 6 19H18C19.1046 19 20 18.1046 20 17V16"
+                    stroke="currentColor"
+                    stroke-width="1.75"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </span>
+              <span class="drop-title">Drop a leaf image here</span>
+              <span class="drop-hint">
+                or <span class="drop-browse">browse files</span>
+              </span>
+              <span class="drop-note">Use a clear, well-lit photo for best results.</span>
+            </label>
+
+            <div class="drop-zone-result hidden" id="drop-result" hidden>
+              <div class="result-layout">
+                <div class="preview-frame">
+                  <img
+                    id="preview-image"
+                    src=""
+                    alt="Selected leaf sample"
+                    class="preview-image"
+                  />
+                </div>
+                <div class="result-side">
+                  <div
+                    id="results-status"
+                    class="result-card"
+                    aria-live="polite"
+                  ></div>
+                  <div class="result-meta">
+                    <span class="preview-meta-label">Selected file</span>
+                    <span
+                      id="preview-filename"
+                      class="preview-meta-name"
+                      title=""
+                    ></span>
+                  </div>
+                  <button type="button" class="btn-secondary" id="retry-btn">
+                    Analyze another image
+                  </button>
+                </div>
+              </div>
             </div>
           </form>
-        </div>
-
-        <div class="panel results-panel" id="results-panel">
-          <div id="results-status" class="empty-state" aria-live="polite">
-            <span class="empty-icon" aria-hidden="true"></span>
-            <p>Results will appear here after analysis.</p>
-          </div>
-
-          <div id="preview-container" class="uploaded-image hidden" hidden>
-            <div class="preview-card">
-              <div class="preview-frame">
-                <img
-                  id="preview-image"
-                  src=""
-                  alt="Selected leaf sample"
-                  class="preview-image"
-                />
-              </div>
-              <div class="preview-meta">
-                <span class="preview-meta-label">Selected file</span>
-                <span
-                  id="preview-filename"
-                  class="preview-meta-name"
-                  title=""
-                ></span>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
     </main>
