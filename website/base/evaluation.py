@@ -178,4 +178,4 @@ def evaluate_model_performance(model, dataloader, device, threshold=5.0, output_
     print(f"  Saved margin chart: '{margin_chart_path}'", flush=True)
     print("Evaluation complete.", flush=True)
 
-    return mae, accuracy
+    return mae, accuracy 
