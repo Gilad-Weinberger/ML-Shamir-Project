@@ -10,6 +10,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping HF Space
-        run: curl -sf --max-time 60 -o /dev/null -w "%{http_code}" "$HF_INFERENCE_URL"
         env:
           HF_INFERENCE_URL: ${{ secrets.HF_INFERENCE_URL }}
+        run: |
+          if [ -z "$HF_INFERENCE_URL" ]; then
+            echo "HF_INFERENCE_URL secret is empty. Add it under Settings → Secrets → Actions."
+            exit 1
+          fi
+
+          url="${HF_INFERENCE_URL%/}"
+          echo "Pinging $url"
+
+          http_code="$(curl -s --max-time 120 -o /dev/null -w "%{http_code}" "$url")"
+          echo "HTTP $http_code"
+
+          case "$http_code" in
+            200|301|302)
+              echo "Space is running."
+              ;;
+            503)
+              echo "Space is asleep or starting — wake request sent."
+              ;;
+            404)
+              echo "Space not found. Confirm the Space exists and the secret matches its hf.space URL."
+              exit 1
+              ;;
+            000)
+              echo "Could not reach the URL. Check for typos or a missing https:// prefix."
+              exit 1
+              ;;
+            *)
+              echo "Unexpected HTTP status: $http_code"
+              exit 1
+              ;;
+          esac
