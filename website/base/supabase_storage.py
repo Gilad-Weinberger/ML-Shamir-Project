@@ -37,12 +37,23 @@ def upload_image(file_obj, filename=None):
 
     content_type = getattr(file_obj, "content_type", None) or "image/jpeg"
 
-    client = get_supabase_client()
-    client.storage.from_(bucket).upload(
-        object_path,
-        data,
-        file_options={"content-type": content_type},
-    )
+    try:
+        client = get_supabase_client()
+        client.storage.from_(bucket).upload(
+            object_path,
+            data,
+            file_options={"content-type": content_type},
+        )
+    except Exception as exc:
+        message = str(exc).lower()
+        if "invalid" in message and "api" in message:
+            raise RuntimeError(
+                "Supabase rejected SUPABASE_SERVICE_ROLE_KEY (Invalid API key). "
+                "Use the service_role JWT from Supabase → Project Settings → API — "
+                "not an hf_ Hugging Face token. "
+                f"Details: {exc}"
+            ) from exc
+        raise
 
     public_url = client.storage.from_(bucket).get_public_url(object_path)
     return public_url, object_path

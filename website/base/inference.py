@@ -6,6 +6,25 @@ def is_remote_inference_configured():
     return bool(os.environ.get("HF_INFERENCE_URL", "").strip())
 
 
+def get_hf_token():
+    """Return HF token only when set; public Spaces should leave HF_TOKEN unset."""
+    token = (os.environ.get("HF_TOKEN") or "").strip()
+    return token or None
+
+
+def _format_hf_error(exc):
+    message = str(exc).lower()
+    if "invalid" in message and ("api" in message or "token" in message or "key" in message):
+        return (
+            "Hugging Face authentication failed (HF_TOKEN). "
+            "If your Space is public, remove HF_TOKEN from Vercel env vars. "
+            "If the Space is private, set HF_TOKEN to a Read token from "
+            "https://huggingface.co/settings/tokens (not the Supabase key). "
+            f"Details: {exc}"
+        )
+    return f"Prediction failed via Hugging Face Space: {exc}"
+
+
 def predict_local(model, image_bytes):
     import torch
     import torchvision.transforms as transforms
@@ -37,7 +56,7 @@ def predict_remote(image_bytes, hf_url=None, token=None):
     if not base_url:
         raise ValueError("HF_INFERENCE_URL is not set")
 
-    token = token or os.environ.get("HF_TOKEN") or None
+    token = token or get_hf_token()
 
     suffix = ".jpg"
     tmp_path = None
@@ -48,6 +67,8 @@ def predict_remote(image_bytes, hf_url=None, token=None):
 
         client = Client(base_url, hf_token=token)
         result = client.predict(handle_file(tmp_path), api_name="/predict")
+    except Exception as exc:
+        raise RuntimeError(_format_hf_error(exc)) from exc
     finally:
         if tmp_path and os.path.exists(tmp_path):
             os.unlink(tmp_path)

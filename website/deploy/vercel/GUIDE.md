@@ -357,7 +357,8 @@ For local inference without Vercel, either set `HF_INFERENCE_URL` or keep a `.pt
 | Issue | Fix |
 |-------|-----|
 | `DisallowedHost` | Add your Vercel URL/domain to `ALLOWED_HOSTS` |
-| Static CSS missing | Check build logs for `collectstatic`; WhiteNoise must be in middleware |
+| Static CSS missing | Redeploy after `CompressedStaticFilesStorage` in settings; confirm `/static/css/base/home.css` loads in browser Network tab |
+| `Invalid API key` on upload | **Supabase** error → fix `SUPABASE_SERVICE_ROLE_KEY` (JWT `eyJ...`, not `hf_`). **HF** error → remove `HF_TOKEN` if Space is public, or set a valid Read `hf_` token |
 | Upload fails | Verify Supabase env vars and run `supabase_setup.sql`; enable **pg_cron** extension |
 | Preview URL broken after 2 days | Expected — cron purges all leaf uploads every 48 hours |
 | No prediction / timeout | Wake HF Space in browser; check `HF_INFERENCE_URL` |
