@@ -44,6 +44,12 @@
             </span>
             <strong class="result-value">{{ prediction }}%</strong>
           </div>
+          {% if upload_error %}
+          <div class="result-card">
+            <span class="result-label">Preview unavailable</span>
+            <p>{{ upload_error }}</p>
+          </div>
+          {% endif %}
           {% else %}
           <div class="empty-state">
             <span class="empty-icon" aria-hidden="true"></span>
