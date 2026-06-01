@@ -1,19 +1,4 @@
-[project]
-name = "grape-leaf-website"
-version = "0.1.0"
-requires-python = ">=3.11"
-dependencies = [
-    "Django==5.1.7",
-    "asgiref==3.8.1",
-    "sqlparse==0.5.3",
-    "tzdata==2025.2",
-    "whitenoise==6.9.0",
-    "pillow==11.1.0",
-    "supabase==2.13.0",
-    "gradio_client==1.8.0",
-    "httpx==0.28.1",
-    "python-dotenv==1.1.0",
-]
-
+# Dependency pins live in requirements.txt (Vercel reads that file).
+# Entrypoint only — do not add [project.dependencies] here or uv may bundle extra deps.
 [tool.vercel]
 entrypoint = "website.wsgi:application"

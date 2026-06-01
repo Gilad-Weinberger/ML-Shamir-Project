@@ -78,14 +78,18 @@ If the Space or model repo is private, also set `HF_TOKEN`.
 
 1. Go to [vercel.com/new](https://vercel.com/new) → import your GitHub repo
 2. **Framework Preset:** Other
-3. **Root Directory** — pick one (do not mix both configs):
+3. **Root Directory:** `website` (required)
+4. In **Settings → Build and Deployment**, leave **Install Command** and **Build Command** **empty** so `website/vercel.json` is used. Dashboard overrides often reinstall the wrong requirements file.
+5. Turn **off** “Include source files outside of the Root Directory” (if shown).
 
-| Root Directory | Config file used | Install Command | Build Command |
-|----------------|------------------|-----------------|----------------|
-| **`website`** (recommended) | `website/vercel.json` | `pip install -r requirements.txt` | `bash deploy/vercel/build.sh` |
-| **`.`** (repo root) | repo `vercel.json` | `pip install -r website/requirements.txt` | `cd website && bash deploy/vercel/build.sh` |
+`website/vercel.json` sets:
 
-If build logs show paths like `/website/__pycache__/...`, your Root Directory is the **repo root** — use the repo-root row above or change Root Directory to `website` and clear custom install/build overrides in the Vercel dashboard.
+| Setting | Value |
+|---------|-------|
+| Install Command | `pip install --no-cache-dir -r requirements.txt` |
+| Build Command | `python manage.py collectstatic --noinput` |
+
+Do **not** add a `vercel.json` or `.vercelignore` at the **repo root** — that conflicts with Root Directory `website`.
 
 ---
 
@@ -355,7 +359,8 @@ For local inference without Vercel, either set `HF_INFERENCE_URL` or keep a `.pt
 | Preview URL broken after 2 days | Expected — cron purges all leaf uploads every 48 hours |
 | No prediction / timeout | Wake HF Space in browser; check `HF_INFERENCE_URL` |
 | 401 from HF | Set `HF_TOKEN` in Vercel env |
-| Build too large | Ensure root `requirements.txt` is slim (no torch); use `requirements-local.txt` only locally |
+| Build too large | Log must show `requirements.txt` (not `requirements-local.txt` / no `torch`). Clear dashboard Install Command override. Remove repo-root `vercel.json` if present. |
+| Log shows `/website/...` in ignore | Usually an old **repo-root** `.vercelignore`; delete it and redeploy with only `website/.vercelignore` |
 
 ---
 

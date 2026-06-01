@@ -3,9 +3,9 @@ data/
 eval_images_test/
 eval_images_test_2/
 ml/
-__pycache__/
-*.pyc
-*.pth
+**/__pycache__/
+**/*.pyc
+**/*.pth
 requirements-local.txt
 requirements-gpu.txt
 multiply-images.py
@@ -13,4 +13,4 @@ multiply-images-5deg.py
 split-train-validation.py
 show_split.py
 train_model.py
-deploy/huggingface/
+deploy/
