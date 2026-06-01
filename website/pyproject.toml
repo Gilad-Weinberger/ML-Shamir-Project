@@ -17,3 +17,6 @@ dependencies = [
 
 [tool.vercel]
 entrypoint = "website.wsgi:application"
+
+[tool.vercel.scripts]
+build = "python build_static.py"
