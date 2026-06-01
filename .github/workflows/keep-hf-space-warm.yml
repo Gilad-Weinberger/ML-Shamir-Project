@@ -1,0 +1,15 @@
+name: Keep HF Space warm
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping HF Space
+        run: curl -sf --max-time 60 -o /dev/null -w "%{http_code}" "$HF_INFERENCE_URL"
+        env:
+          HF_INFERENCE_URL: ${{ secrets.HF_INFERENCE_URL }}

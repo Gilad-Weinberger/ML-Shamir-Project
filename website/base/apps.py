@@ -27,6 +27,15 @@ class BaseConfig(AppConfig):
         if os.environ.get("VERCEL") == "1":
             BaseConfig.model = None
             print("Vercel deployment: inference via HF_INFERENCE_URL.")
+            if is_remote_inference_configured():
+                try:
+                    from .inference import _get_gradio_client, get_hf_token
+
+                    url = os.environ["HF_INFERENCE_URL"].strip().rstrip("/")
+                    _get_gradio_client(url, get_hf_token())
+                    print("Pre-warmed HF Gradio client.")
+                except Exception as exc:
+                    print(f"HF client pre-warm skipped: {exc}")
             return
 
         try:

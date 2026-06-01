@@ -105,6 +105,10 @@ demo = gr.Interface(
     flagging_mode="never",
 )
 
+print("Pre-loading model at startup...")
+get_model()
+print("Model ready.")
+
 demo.launch(
     server_name="0.0.0.0",
     server_port=int(os.environ.get("PORT", "7860")),

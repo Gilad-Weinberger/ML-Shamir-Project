@@ -1,4 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "django"
+  "framework": "django",
+  "functions": {
+    "**": {
+      "maxDuration": 30
+    }
+  }
 }

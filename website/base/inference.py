@@ -1,5 +1,11 @@
 import os
 import tempfile
+import threading
+
+
+_client = None
+_client_key = None
+_client_lock = threading.Lock()
 
 
 def is_remote_inference_configured():
@@ -23,6 +29,30 @@ def _format_hf_error(exc):
             f"Details: {exc}"
         )
     return f"Prediction failed via Hugging Face Space: {exc}"
+
+
+def _is_transient_hf_error(exc):
+    message = str(exc).lower()
+    transient_markers = ("connection", "timeout", "502", "503", "reset", "unavailable")
+    return any(marker in message for marker in transient_markers)
+
+
+def _reset_gradio_client():
+    global _client, _client_key
+    _client = None
+    _client_key = None
+
+
+def _get_gradio_client(base_url, token):
+    global _client, _client_key
+    key = (base_url, token or "")
+    with _client_lock:
+        if _client is None or _client_key != key:
+            from gradio_client import Client
+
+            _client = Client(base_url, hf_token=token)
+            _client_key = key
+        return _client
 
 
 def predict_local(model, image_bytes):
@@ -49,8 +79,17 @@ def predict_local(model, image_bytes):
     return round(max(0.0, min(100.0, predicted_percentage)), 1)
 
 
+def _parse_remote_result(result):
+    if isinstance(result, dict):
+        if result.get("error"):
+            raise RuntimeError(result["error"])
+        if "prediction" in result and result["prediction"] is not None:
+            return round(float(result["prediction"]), 1)
+    return round(float(result), 1)
+
+
 def predict_remote(image_bytes, hf_url=None, token=None):
-    from gradio_client import Client, handle_file
+    from gradio_client import handle_file
 
     base_url = (hf_url or os.environ.get("HF_INFERENCE_URL", "")).strip().rstrip("/")
     if not base_url:
@@ -65,21 +104,25 @@ def predict_remote(image_bytes, hf_url=None, token=None):
             tmp.write(image_bytes)
             tmp_path = tmp.name
 
-        client = Client(base_url, hf_token=token)
-        result = client.predict(handle_file(tmp_path), api_name="/predict")
+        client = _get_gradio_client(base_url, token)
+        try:
+            result = client.predict(handle_file(tmp_path), api_name="/predict")
+        except Exception as exc:
+            if _is_transient_hf_error(exc):
+                _reset_gradio_client()
+                client = _get_gradio_client(base_url, token)
+                result = client.predict(handle_file(tmp_path), api_name="/predict")
+            else:
+                raise RuntimeError(_format_hf_error(exc)) from exc
+    except RuntimeError:
+        raise
     except Exception as exc:
         raise RuntimeError(_format_hf_error(exc)) from exc
     finally:
         if tmp_path and os.path.exists(tmp_path):
             os.unlink(tmp_path)
 
-    if isinstance(result, dict):
-        if result.get("error"):
-            raise RuntimeError(result["error"])
-        if "prediction" in result and result["prediction"] is not None:
-            return round(float(result["prediction"]), 1)
-
-    return round(float(result), 1)
+    return _parse_remote_result(result)
 
 
 def predict(image_bytes, model=None, hf_url=None, token=None):
