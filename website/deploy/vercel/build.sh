@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-pip install -r deploy/vercel/requirements-vercel.txt
+pip install -r requirements.txt
 python manage.py collectstatic --noinput

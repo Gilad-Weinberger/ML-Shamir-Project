@@ -14,7 +14,7 @@ if WEBSITE_ROOT not in sys.path:
 
 from model_config import EVALUATION_THRESHOLD, MODEL_VARIANTS, get_eval_folder, get_test_folder
 from ml.dataset import GrapeLeafDataset
-from base.views import evaluate_model_performance
+from base.evaluation import evaluate_model_performance
 
 
 class Command(BaseCommand):

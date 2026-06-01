@@ -1,20 +1,10 @@
 {
-  "installCommand": "pip install -r deploy/vercel/requirements-vercel.txt",
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "pip install -r requirements.txt",
   "buildCommand": "bash deploy/vercel/build.sh",
-  "builds": [
-    {
-      "src": "website/wsgi.py",
-      "use": "@vercel/python",
-      "config": {
-        "maxLambdaSize": "50mb",
-        "runtime": "python3.11"
-      }
+  "functions": {
+    "website/wsgi.py": {
+      "excludeFiles": "{evals/**,data/**,eval_images_test/**,eval_images_test_2/**,__pycache__/**,**/*.pyc,**/*.pth,ml/**,multiply-images*.py,split-train-validation.py,show_split.py,train_model.py,requirements-local.txt,requirements-gpu.txt,deploy/huggingface/**}"
     }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "website/wsgi.py"
-    }
-  ]
+  }
 }

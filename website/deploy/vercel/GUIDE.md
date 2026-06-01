@@ -83,7 +83,7 @@ If the Space or model repo is private, also set `HF_TOKEN`.
 
 | Setting | Value |
 |---------|-------|
-| Install Command | `pip install -r deploy/vercel/requirements-vercel.txt` |
+| Install Command | `pip install -r requirements.txt` (slim; no torch) |
 | Build Command | `bash deploy/vercel/build.sh` |
 
 Alternatively, copy `deploy/vercel/vercel.json` to `website/vercel.json` (root of Vercel project).
@@ -252,7 +252,7 @@ copy deploy\vercel\.env.example .env
 3. Install and run:
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements-local.txt
 py manage.py runserver
 ```
 
@@ -318,7 +318,7 @@ Do **not** rely on `MEDIA_ROOT` in production. Supabase must be configured or up
 
 ### No PyTorch on Vercel
 
-Inference runs on your HF Space. The slim `requirements-vercel.txt` excludes `torch`.
+Inference runs on your HF Space. Root `requirements.txt` excludes `torch` (use `requirements-local.txt` locally).
 
 ### Cold starts
 
@@ -336,7 +336,7 @@ Copy [`deploy/vercel/.env.example`](../vercel/.env.example) to **`website/.env`*
 cd website
 copy deploy\vercel\.env.example .env   # Windows
 # edit .env with your keys
-pip install -r requirements.txt
+pip install -r requirements-local.txt
 py manage.py runserver
 ```
 
@@ -356,7 +356,7 @@ For local inference without Vercel, either set `HF_INFERENCE_URL` or keep a `.pt
 | Preview URL broken after 2 days | Expected — cron purges all leaf uploads every 48 hours |
 | No prediction / timeout | Wake HF Space in browser; check `HF_INFERENCE_URL` |
 | 401 from HF | Set `HF_TOKEN` in Vercel env |
-| Build too large | Ensure `deploy/vercel/requirements-vercel.txt` is used (no torch) |
+| Build too large | Ensure root `requirements.txt` is slim (no torch); use `requirements-local.txt` only locally |
 
 ---
 
@@ -377,6 +377,7 @@ For local inference without Vercel, either set `HF_INFERENCE_URL` or keep a `.pt
 | `.env.example` | Environment variable template |
 | `supabase_setup.sql` | Public bucket, policies, 48h purge cron |
 | `supabase_cron_cleanup.sql` | Cron job only (if setup already ran) |
-| `requirements-vercel.txt` | Slim production dependencies |
+| `requirements-vercel.txt` | Mirror of root `requirements.txt` (Vercel / production) |
+| `requirements-local.txt` | Full local stack (torch, matplotlib, training) |
 | `build.sh` | Install + collectstatic |
 | `vercel.json` | Vercel config template |

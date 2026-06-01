@@ -1,9 +1,5 @@
 import os
 
-import torch
-
-from ml.model import GrapeLeafRegressor
-
 
 def is_hf_configured():
     return bool(os.environ.get("HF_MODEL_REPO", "").strip())
@@ -29,6 +25,10 @@ def download_model_from_hub(repo, filename, token=None, cache_dir=None):
 
 
 def load_local_model(model_file, device, base_dir=None):
+    import torch
+
+    from ml.model import GrapeLeafRegressor
+
     base_dir = base_dir or os.path.dirname(__file__)
     model_path = os.path.join(base_dir, model_file)
 
@@ -42,6 +42,10 @@ def load_local_model(model_file, device, base_dir=None):
 
 
 def load_model(model_file, device, base_dir=None):
+    import torch
+
+    from ml.model import GrapeLeafRegressor
+
     model = load_local_model(model_file, device, base_dir=base_dir)
     if model is not None:
         return model

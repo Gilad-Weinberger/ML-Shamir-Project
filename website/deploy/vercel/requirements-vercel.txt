@@ -1,21 +1,11 @@
-# Django (production — no PyTorch)
+# Same pins as ../../requirements.txt (kept for deploy/vercel docs)
 Django==5.1.7
 asgiref==3.8.1
 sqlparse==0.5.3
 tzdata==2025.2
-
-# Static files
 whitenoise==6.9.0
-
-# Image handling
 pillow==11.1.0
-
-# Supabase Storage
 supabase==2.13.0
-
-# HF Space inference (Gradio client — lightweight, no torch)
 gradio_client==1.8.0
 httpx==0.28.1
-
-# Optional: download model weights locally if needed (no torch)
 python-dotenv==1.1.0
