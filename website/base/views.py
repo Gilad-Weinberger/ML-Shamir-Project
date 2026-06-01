@@ -1,3 +1,4 @@
+import time
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 
@@ -7,6 +8,24 @@ from django.shortcuts import render
 from .forms import ImageUploadForm
 from .inference import is_remote_inference_configured, predict
 from .supabase_storage import is_supabase_configured, upload_image
+
+
+def _log_timing(step, elapsed_ms):
+    print(f"[timing] {step}: {elapsed_ms:.1f}ms")
+
+
+def _timed_predict(image_bytes, model):
+    t0 = time.perf_counter()
+    result = predict(image_bytes, model=model)
+    _log_timing("view_predict_thread", (time.perf_counter() - t0) * 1000)
+    return result
+
+
+def _timed_upload(buffer, filename):
+    t0 = time.perf_counter()
+    result = upload_image(buffer, filename)
+    _log_timing("view_supabase_upload_thread", (time.perf_counter() - t0) * 1000)
+    return result
 
 
 def Home(request):
@@ -20,11 +39,19 @@ def Home(request):
     upload_error = None
 
     if request.method == "POST":
+        t_request = time.perf_counter()
+
+        t0 = time.perf_counter()
         form = ImageUploadForm(request.POST, request.FILES)
-        if form.is_valid():
+        form_valid = form.is_valid()
+        _log_timing("view_form_validation", (time.perf_counter() - t0) * 1000)
+
+        if form_valid:
+            t0 = time.perf_counter()
             uploaded_file = request.FILES["image"]
             image_bytes = uploaded_file.read()
             uploaded_image_name = uploaded_file.name
+            _log_timing("view_read_image_bytes", (time.perf_counter() - t0) * 1000)
 
             app_config = apps.get_app_config("base")
             model = app_config.model
@@ -38,14 +65,17 @@ def Home(request):
                 )
             else:
                 upload_future = None
+                t_parallel = time.perf_counter()
                 with ThreadPoolExecutor(max_workers=2) as executor:
-                    predict_future = executor.submit(predict, image_bytes, model=model)
+                    predict_future = executor.submit(_timed_predict, image_bytes, model)
 
                     if is_supabase_configured():
                         buffer = BytesIO(image_bytes)
                         buffer.name = uploaded_file.name
                         buffer.content_type = uploaded_file.content_type or "image/jpeg"
-                        upload_future = executor.submit(upload_image, buffer, uploaded_file.name)
+                        upload_future = executor.submit(
+                            _timed_upload, buffer, uploaded_file.name
+                        )
 
                     try:
                         prediction = predict_future.result()
@@ -64,6 +94,15 @@ def Home(request):
                                 uploaded_image_url, _ = upload_future.result()
                             except Exception as exc:
                                 upload_error = f"Failed to upload image to Supabase: {exc}"
+
+                _log_timing("view_parallel_wall", (time.perf_counter() - t_parallel) * 1000)
+
+        t0 = time.perf_counter()
+        if not form_valid:
+            form = ImageUploadForm()
+        _log_timing("view_render_prep", (time.perf_counter() - t0) * 1000)
+
+        _log_timing("view_request_total", (time.perf_counter() - t_request) * 1000)
     else:
         form = ImageUploadForm()
 

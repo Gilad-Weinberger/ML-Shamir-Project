@@ -1,11 +1,16 @@
 import os
 import tempfile
 import threading
+import time
 
 
 _client = None
 _client_key = None
 _client_lock = threading.Lock()
+
+
+def _log_timing(step, elapsed_ms):
+    print(f"[timing] {step}: {elapsed_ms:.1f}ms")
 
 
 def is_remote_inference_configured():
@@ -48,10 +53,14 @@ def _get_gradio_client(base_url, token):
     key = (base_url, token or "")
     with _client_lock:
         if _client is None or _client_key != key:
+            t0 = time.perf_counter()
             from gradio_client import Client
 
             _client = Client(base_url, hf_token=token)
             _client_key = key
+            _log_timing("gradio_client_init", (time.perf_counter() - t0) * 1000)
+        else:
+            _log_timing("gradio_client_init", 0.0)
         return _client
 
 
@@ -62,21 +71,33 @@ def predict_local(model, image_bytes):
 
     from io import BytesIO
 
+    t_total = time.perf_counter()
+
+    t0 = time.perf_counter()
     pil_image = Image.open(BytesIO(image_bytes)).convert("RGB")
+    _log_timing("local_decode_image", (time.perf_counter() - t0) * 1000)
+
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
     ])
+
+    t0 = time.perf_counter()
     image_tensor = transform(pil_image).unsqueeze(0)
     device = next(model.parameters()).device
     image_tensor = image_tensor.to(device)
+    _log_timing("local_preprocess", (time.perf_counter() - t0) * 1000)
 
+    t0 = time.perf_counter()
     model.eval()
     with torch.no_grad():
         output = model(image_tensor)
         predicted_percentage = output.item()
+    _log_timing("local_forward_pass", (time.perf_counter() - t0) * 1000)
 
-    return round(max(0.0, min(100.0, predicted_percentage)), 1)
+    result = round(max(0.0, min(100.0, predicted_percentage)), 1)
+    _log_timing("predict_local_total", (time.perf_counter() - t_total) * 1000)
+    return result
 
 
 def _parse_remote_result(result):
@@ -91,6 +112,8 @@ def _parse_remote_result(result):
 def predict_remote(image_bytes, hf_url=None, token=None):
     from gradio_client import handle_file
 
+    t_total = time.perf_counter()
+
     base_url = (hf_url or os.environ.get("HF_INFERENCE_URL", "")).strip().rstrip("/")
     if not base_url:
         raise ValueError("HF_INFERENCE_URL is not set")
@@ -99,19 +122,32 @@ def predict_remote(image_bytes, hf_url=None, token=None):
 
     suffix = ".jpg"
     tmp_path = None
+    result = None
     try:
+        t0 = time.perf_counter()
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
             tmp.write(image_bytes)
             tmp_path = tmp.name
+        _log_timing("remote_temp_file_write", (time.perf_counter() - t0) * 1000)
 
+        t0 = time.perf_counter()
         client = _get_gradio_client(base_url, token)
+        _log_timing("remote_get_client", (time.perf_counter() - t0) * 1000)
+
         try:
+            t0 = time.perf_counter()
             result = client.predict(handle_file(tmp_path), api_name="/predict")
+            _log_timing("remote_gradio_predict_call", (time.perf_counter() - t0) * 1000)
         except Exception as exc:
             if _is_transient_hf_error(exc):
+                _log_timing("remote_gradio_predict_call", (time.perf_counter() - t0) * 1000)
                 _reset_gradio_client()
+                t0 = time.perf_counter()
                 client = _get_gradio_client(base_url, token)
+                _log_timing("remote_get_client_retry", (time.perf_counter() - t0) * 1000)
+                t0 = time.perf_counter()
                 result = client.predict(handle_file(tmp_path), api_name="/predict")
+                _log_timing("remote_gradio_predict_call_retry", (time.perf_counter() - t0) * 1000)
             else:
                 raise RuntimeError(_format_hf_error(exc)) from exc
     except RuntimeError:
@@ -119,18 +155,27 @@ def predict_remote(image_bytes, hf_url=None, token=None):
     except Exception as exc:
         raise RuntimeError(_format_hf_error(exc)) from exc
     finally:
+        t0 = time.perf_counter()
         if tmp_path and os.path.exists(tmp_path):
             os.unlink(tmp_path)
+        _log_timing("remote_temp_file_cleanup", (time.perf_counter() - t0) * 1000)
 
-    return _parse_remote_result(result)
+    parsed = _parse_remote_result(result)
+    _log_timing("predict_remote_total", (time.perf_counter() - t_total) * 1000)
+    return parsed
 
 
 def predict(image_bytes, model=None, hf_url=None, token=None):
+    t0 = time.perf_counter()
     if model is not None:
-        return predict_local(model, image_bytes)
+        result = predict_local(model, image_bytes)
+        _log_timing("predict_total (local)", (time.perf_counter() - t0) * 1000)
+        return result
 
     if is_remote_inference_configured() or hf_url:
-        return predict_remote(image_bytes, hf_url=hf_url, token=token)
+        result = predict_remote(image_bytes, hf_url=hf_url, token=token)
+        _log_timing("predict_total (remote)", (time.perf_counter() - t0) * 1000)
+        return result
 
     raise RuntimeError(
         "No model loaded and HF_INFERENCE_URL is not set. "
