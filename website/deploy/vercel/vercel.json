@@ -1,5 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": null,
-  "buildCommand": "python manage.py collectstatic --noinput"
+  "framework": "django"
 }

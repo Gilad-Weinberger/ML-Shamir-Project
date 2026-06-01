@@ -77,23 +77,22 @@ If the Space or model repo is private, also set `HF_TOKEN`.
 ## Step 3 — Import project to Vercel
 
 1. Go to [vercel.com/new](https://vercel.com/new) → import your GitHub repo
-2. **Framework Preset:** Other
+2. **Framework Preset:** **Django** (or leave empty and use `website/vercel.json` → `"framework": "django"`)
 3. **Root Directory:** `website` (required)
-4. In **Settings → Build and Deployment**, leave **Install Command** **empty** (Vercel installs deps with **uv** from `pyproject.toml` / `requirements.txt`). Leave **Build Command** empty unless you override it.
+4. In **Settings → Build and Deployment**, leave **Install Command**, **Build Command**, and **Output Directory** **empty** (use platform defaults).
 5. Turn **off** “Include source files outside of the Root Directory” (if shown).
 
-`website/vercel.json` sets:
+`website/vercel.json` sets `"framework": "django"`. Vercel then:
 
-| Setting | Value |
-|---------|-------|
-| Install Command | *(empty — platform default; do not use `pip install`, it fails on uv-managed Python)* |
-| Build Command | `python manage.py collectstatic --noinput` |
+- Installs deps with **uv** from `pyproject.toml` / `requirements.txt`
+- Runs **`collectstatic` automatically** (because `STATIC_ROOT` is set — do not add a manual collectstatic build command)
+- Deploys a **Python function** (no `public` output folder)
 
-Dependencies are pinned in **`requirements.txt`** and mirrored in **`pyproject.toml`** `[project.dependencies]` (uv prefers `pyproject.toml` when both exist).
+Dependencies are pinned in **`requirements.txt`** and mirrored in **`pyproject.toml`** `[project.dependencies]`.
+
+Entrypoint: `pyproject.toml` → `[tool.vercel] entrypoint = "website.wsgi:application"`.
 
 Do **not** add a `vercel.json` or `.vercelignore` at the **repo root** — that conflicts with Root Directory `website`.
-
-Django routing uses `pyproject.toml` → `[tool.vercel] entrypoint = "website.wsgi:application"`. Do **not** add a `functions.website/wsgi.py` block in `vercel.json` (Vercel CLI 54+ rejects it).
 
 ---
 
@@ -365,6 +364,7 @@ For local inference without Vercel, either set `HF_INFERENCE_URL` or keep a `.pt
 | 401 from HF | Set `HF_TOKEN` in Vercel env |
 | Build too large | Log must show slim deps (no `torch`). Clear dashboard Install Command override. Remove repo-root `vercel.json` if present. |
 | `externally-managed-environment` | Remove custom `pip install` Install Command; use empty install + uv (see `pyproject.toml`). |
+| `No Output Directory named "public"` | Set Framework Preset to **Django** (not Other). Remove manual `buildCommand` / clear Output Directory in dashboard. |
 | Log shows `/website/...` in ignore | Usually an old **repo-root** `.vercelignore`; delete it and redeploy with only `website/.vercelignore` |
 
 ---
