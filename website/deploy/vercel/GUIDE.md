@@ -79,15 +79,17 @@ If the Space or model repo is private, also set `HF_TOKEN`.
 1. Go to [vercel.com/new](https://vercel.com/new) → import your GitHub repo
 2. **Framework Preset:** Other
 3. **Root Directory:** `website` (required)
-4. In **Settings → Build and Deployment**, leave **Install Command** and **Build Command** **empty** so `website/vercel.json` is used. Dashboard overrides often reinstall the wrong requirements file.
+4. In **Settings → Build and Deployment**, leave **Install Command** **empty** (Vercel installs deps with **uv** from `pyproject.toml` / `requirements.txt`). Leave **Build Command** empty unless you override it.
 5. Turn **off** “Include source files outside of the Root Directory” (if shown).
 
 `website/vercel.json` sets:
 
 | Setting | Value |
 |---------|-------|
-| Install Command | `pip install --no-cache-dir -r requirements.txt` |
+| Install Command | *(empty — platform default; do not use `pip install`, it fails on uv-managed Python)* |
 | Build Command | `python manage.py collectstatic --noinput` |
+
+Dependencies are pinned in **`requirements.txt`** and mirrored in **`pyproject.toml`** `[project.dependencies]` (uv prefers `pyproject.toml` when both exist).
 
 Do **not** add a `vercel.json` or `.vercelignore` at the **repo root** — that conflicts with Root Directory `website`.
 
@@ -361,7 +363,8 @@ For local inference without Vercel, either set `HF_INFERENCE_URL` or keep a `.pt
 | Preview URL broken after 2 days | Expected — cron purges all leaf uploads every 48 hours |
 | No prediction / timeout | Wake HF Space in browser; check `HF_INFERENCE_URL` |
 | 401 from HF | Set `HF_TOKEN` in Vercel env |
-| Build too large | Log must show `requirements.txt` (not `requirements-local.txt` / no `torch`). Clear dashboard Install Command override. Remove repo-root `vercel.json` if present. |
+| Build too large | Log must show slim deps (no `torch`). Clear dashboard Install Command override. Remove repo-root `vercel.json` if present. |
+| `externally-managed-environment` | Remove custom `pip install` Install Command; use empty install + uv (see `pyproject.toml`). |
 | Log shows `/website/...` in ignore | Usually an old **repo-root** `.vercelignore`; delete it and redeploy with only `website/.vercelignore` |
 
 ---

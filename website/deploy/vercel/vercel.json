@@ -1,6 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "pip install --no-cache-dir -r requirements.txt",
   "buildCommand": "python manage.py collectstatic --noinput"
 }
