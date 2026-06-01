@@ -1,7 +1,6 @@
 (function () {
   const form = document.getElementById("upload-form");
   const fileInput = form.querySelector('input[type="file"]');
-  const analyzeBtn = document.getElementById("analyze-btn");
   const resultsStatus = document.getElementById("results-status");
   const previewContainer = document.getElementById("preview-container");
   const previewImage = document.getElementById("preview-image");
@@ -9,6 +8,7 @@
   const csrfInput = form.querySelector("[name=csrfmiddlewaretoken]");
 
   let previewObjectUrl = null;
+  let analysisGeneration = 0;
 
   function getCsrfToken() {
     return csrfInput ? csrfInput.value : "";
@@ -41,9 +41,15 @@
     previewContainer.classList.remove("hidden");
   }
 
+  function resetResultsPlaceholder() {
+    resultsStatus.className = "empty-state";
+    resultsStatus.innerHTML =
+      '<span class="empty-icon" aria-hidden="true"></span>' +
+      "<p>Results will appear here after analysis.</p>";
+  }
+
   function setLoading(isLoading) {
-    analyzeBtn.disabled = isLoading;
-    analyzeBtn.classList.toggle("is-loading", isLoading);
+    fileInput.disabled = isLoading;
     if (isLoading) {
       resultsStatus.className = "empty-state is-loading";
       resultsStatus.innerHTML =
@@ -74,7 +80,7 @@
     return div.innerHTML;
   }
 
-  function uploadInBackground(file) {
+  function uploadInBackground(file, generation) {
     const body = new FormData();
     body.append("csrfmiddlewaretoken", getCsrfToken());
     body.append("image", file);
@@ -90,6 +96,9 @@
         });
       })
       .then(function (result) {
+        if (generation !== analysisGeneration) {
+          return;
+        }
         if (result.ok && result.data.url) {
           revokePreviewUrl();
           previewImage.src = result.data.url;
@@ -103,24 +112,7 @@
       });
   }
 
-  fileInput.addEventListener("change", function () {
-    const file = fileInput.files && fileInput.files[0];
-    setPreview(file || null);
-    resultsStatus.className = "empty-state";
-    resultsStatus.innerHTML =
-      '<span class="empty-icon" aria-hidden="true"></span>' +
-      "<p>Results will appear here after analysis.</p>";
-  });
-
-  form.addEventListener("submit", function (event) {
-    event.preventDefault();
-
-    const file = fileInput.files && fileInput.files[0];
-    if (!file) {
-      showError("Please select an image first.");
-      return;
-    }
-
+  function runAnalysis(file, generation) {
     setLoading(true);
 
     const body = new FormData();
@@ -138,19 +130,42 @@
         });
       })
       .then(function (result) {
+        if (generation !== analysisGeneration) {
+          return;
+        }
         if (!result.ok) {
           showError(result.data.error || "Prediction failed.");
           return;
         }
         showPrediction(result.data.prediction);
-        uploadInBackground(file);
+        uploadInBackground(file, generation);
       })
       .catch(function () {
+        if (generation !== analysisGeneration) {
+          return;
+        }
         showError("Network error. Please try again.");
       })
       .finally(function () {
-        setLoading(false);
+        if (generation === analysisGeneration) {
+          setLoading(false);
+        }
       });
+  }
+
+  fileInput.addEventListener("change", function () {
+    const file = fileInput.files && fileInput.files[0];
+    setPreview(file || null);
+
+    if (!file) {
+      resetResultsPlaceholder();
+      return;
+    }
+
+    analysisGeneration += 1;
+    const generation = analysisGeneration;
+    resetResultsPlaceholder();
+    runAnalysis(file, generation);
   });
 
   window.addEventListener("pagehide", revokePreviewUrl);
