@@ -8,6 +8,7 @@ losses/
 current_data.csv
 
 /website/media/
+/website/.env
 
 /website/guide.html
 

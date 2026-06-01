@@ -9,8 +9,6 @@ from PIL import Image
 from io import BytesIO
 
 from django.apps import apps
-from django.core.files.base import ContentFile
-from django.core.files.storage import FileSystemStorage
 from django.shortcuts import render
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
@@ -212,7 +210,13 @@ def Home(request):
             image_bytes = uploaded_file.read()
             uploaded_image_name = uploaded_file.name
 
-            if is_supabase_configured():
+            if not is_supabase_configured():
+                model_error = (
+                    "Supabase Storage is not configured. Set SUPABASE_URL, "
+                    "SUPABASE_SERVICE_ROLE_KEY, and SUPABASE_STORAGE_BUCKET "
+                    "(see website/deploy/vercel/GUIDE.md)."
+                )
+            else:
                 try:
                     buffer = BytesIO(image_bytes)
                     buffer.name = uploaded_file.name
@@ -220,10 +224,6 @@ def Home(request):
                     uploaded_image_url, _ = upload_image(buffer, uploaded_file.name)
                 except Exception as exc:
                     model_error = f"Failed to upload image to Supabase: {exc}"
-            else:
-                fs = FileSystemStorage()
-                filename = fs.save(uploaded_file.name, ContentFile(image_bytes))
-                uploaded_image_url = fs.url(filename)
 
             if model_error is None:
                 app_config = apps.get_app_config("base")

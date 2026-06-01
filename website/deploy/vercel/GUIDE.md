@@ -92,20 +92,171 @@ Alternatively, copy `deploy/vercel/vercel.json` to `website/vercel.json` (root o
 
 ## Step 4 — Environment variables
 
-In Vercel → **Project → Settings → Environment Variables**, add:
+Set these in **two places** depending on where you run the app:
 
-| Variable | Example | Required |
-|----------|---------|----------|
-| `DJANGO_SECRET_KEY` | long random string | Yes |
-| `DEBUG` | `False` | Yes |
-| `ALLOWED_HOSTS` | `.vercel.app,your-domain.com` | Yes |
-| `SUPABASE_URL` | `https://xxx.supabase.co` | Yes |
-| `SUPABASE_SERVICE_ROLE_KEY` | `eyJ...` | Yes |
-| `SUPABASE_STORAGE_BUCKET` | `leaf-uploads` | Yes |
-| `HF_INFERENCE_URL` | `https://user-grape-leaf-inference.hf.space` | Yes |
-| `HF_TOKEN` | `hf_...` | If private Space/repo |
+| Where you run | Where to put env vars |
+|---------------|------------------------|
+| **Production (Vercel)** | Vercel dashboard → your project → **Settings → Environment Variables** |
+| **Local (`py manage.py runserver`)** | Copy `deploy/vercel/.env.example` → **`website/.env`** (auto-loaded by Django) |
 
-Use [`.env.example`](.env.example) as a template.
+Use [`.env.example`](.env.example) as a copy template. Apply vars to **Production** (and **Preview** if you want preview deploys to work the same way).
+
+---
+
+### Variable-by-variable guide
+
+#### `DJANGO_SECRET_KEY`
+
+| | |
+|---|---|
+| **What it is** | Random secret Django uses for sessions, CSRF, etc. |
+| **Where to get it** | Generate yourself — any long random string (50+ chars). Example PowerShell: `[System.Convert]::ToBase64String((1..48 \| ForEach-Object { Get-Random -Maximum 256 }))` |
+| **Where to put it** | **Vercel:** Settings → Environment Variables → name `DJANGO_SECRET_KEY`, value = your string. **Local:** export in terminal or add to `.env`. |
+| **Example** | `k8x#m2p9...` (never commit the real value) |
+| **Required** | Yes (production) |
+
+---
+
+#### `DEBUG`
+
+| | |
+|---|---|
+| **What it is** | Turns Django debug mode on/off. |
+| **Where to get it** | You choose the value — not from a third-party dashboard. |
+| **Where to put it** | **Vercel:** `DEBUG` = `False`. **Local:** omit (defaults to `True`) or set `True`. |
+| **Example** | `False` |
+| **Required** | Yes on Vercel |
+
+---
+
+#### `ALLOWED_HOSTS`
+
+| | |
+|---|---|
+| **What it is** | Comma-separated list of hostnames Django will accept. |
+| **Where to get it** | Your Vercel URL after first deploy (e.g. `ml-shamir-project.vercel.app`) plus any custom domain. |
+| **Where to put it** | **Vercel:** one variable, comma-separated. **Local:** usually leave empty for `localhost`. |
+| **Example** | `.vercel.app,my-app.vercel.app,leaf.example.com` |
+| **Required** | Yes on Vercel |
+
+Tip: `.vercel.app` matches any `*.vercel.app` subdomain.
+
+---
+
+#### `SUPABASE_URL`
+
+| | |
+|---|---|
+| **What it is** | Your Supabase project API URL. |
+| **Where to get it** | [Supabase Dashboard](https://supabase.com/dashboard) → your project → **Project Settings** (gear) → **API** → **Project URL** |
+| **Where to put it** | **Vercel:** `SUPABASE_URL`. **Local:** same, if testing Supabase uploads locally. |
+| **Example** | `https://abcdefghijklmnop.supabase.co` |
+| **Required** | Yes (for upload previews in production) |
+
+---
+
+#### `SUPABASE_SERVICE_ROLE_KEY`
+
+| | |
+|---|---|
+| **What it is** | Server-side API key with full access (bypasses RLS). Used by Django to upload images. |
+| **Where to get it** | Supabase → **Project Settings → API** → **Project API keys** → **`service_role`** → **Reveal** (secret) |
+| **Where to put it** | **Vercel:** `SUPABASE_SERVICE_ROLE_KEY` (mark as sensitive). **Local:** same — never commit to git. |
+| **Example** | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` |
+| **Required** | Yes (production) |
+
+**Never** use the `anon` key here. **Never** expose `service_role` in frontend code or public repos.
+
+---
+
+#### `SUPABASE_STORAGE_BUCKET`
+
+| | |
+|---|---|
+| **What it is** | Name of the Storage bucket for leaf upload previews. |
+| **Where to get it** | You define it when running [`supabase_setup.sql`](supabase_setup.sql) — default is `leaf-uploads`. Confirm under **Storage** in Supabase. |
+| **Where to put it** | **Vercel:** `SUPABASE_STORAGE_BUCKET` = `leaf-uploads`. **Local:** same. |
+| **Example** | `leaf-uploads` |
+| **Required** | Yes (production) |
+
+---
+
+#### `HF_INFERENCE_URL`
+
+| | |
+|---|---|
+| **What it is** | Base URL of your Hugging Face **Space** (Gradio inference app). |
+| **Where to get it** | [huggingface.co/spaces](https://huggingface.co/spaces) → your Space (e.g. `GiladWeinberger/grape-leaf-inference`) → copy the public URL **without** a trailing path. |
+| **Where to put it** | **Vercel:** `HF_INFERENCE_URL`. **Local:** same, to test remote inference without a local `.pth`. |
+| **Example** | `https://GiladWeinberger-grape-leaf-inference.hf.space` |
+| **Required** | Yes on Vercel (no PyTorch on serverless) |
+
+See [HF guide](../huggingface/GUIDE.md) if the Space is not running yet.
+
+---
+
+#### `HF_TOKEN`
+
+| | |
+|---|---|
+| **What it is** | Hugging Face access token so Django can call a **private** Space or private model repo. |
+| **Where to get it** | [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) → **Create new token** → **Read** access is enough for inference |
+| **Where to put it** | **Vercel:** `HF_TOKEN` (sensitive). **Local:** same. |
+| **Example** | `hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` |
+| **Required** | Yes if your Space or model repo is **private**; optional if both are public |
+
+---
+
+#### `HF_MODEL_REPO` and `HF_MODEL_FILE` (optional on Vercel)
+
+| | |
+|---|---|
+| **What they are** | Hugging Face **model** repo id and weights filename — used to download a `.pth` locally, not for Vercel inference. |
+| **Where to get them** | Your model repo (e.g. `GiladWeinberger/grape-leaf-5deg`) and file `grape_leaf_model_5deg.pth` after running `upload_model.py`. |
+| **Where to put them** | **Local only** (optional). **Not needed on Vercel** when `HF_INFERENCE_URL` is set. |
+| **Example** | `HF_MODEL_REPO=GiladWeinberger/grape-leaf-5deg`, `HF_MODEL_FILE=grape_leaf_model_5deg.pth` |
+
+---
+
+### Quick checklist — Vercel dashboard
+
+1. Open [vercel.com](https://vercel.com) → your project → **Settings → Environment Variables**
+2. Add each variable below for **Production** (and **Preview** if desired):
+
+| Variable | Get value from |
+|----------|----------------|
+| `DJANGO_SECRET_KEY` | Generate random string |
+| `DEBUG` | Type `False` |
+| `ALLOWED_HOSTS` | Your `*.vercel.app` URL (+ custom domain) |
+| `SUPABASE_URL` | Supabase → Settings → API → Project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → API → service_role key |
+| `SUPABASE_STORAGE_BUCKET` | `leaf-uploads` (from SQL setup) |
+| `HF_INFERENCE_URL` | Your HF Space URL |
+| `HF_TOKEN` | huggingface.co/settings/tokens (if private) |
+
+3. **Redeploy** after adding or changing variables (Deployments → ⋮ → Redeploy).
+
+---
+
+### Quick checklist — local testing
+
+1. Copy env template:
+
+```bash
+cd website
+copy deploy\vercel\.env.example .env
+```
+
+2. Edit **`website/.env`** with your Supabase and HF keys (see variable guide above).
+
+3. Install and run:
+
+```bash
+pip install -r requirements.txt
+py manage.py runserver
+```
+
+4. Upload a leaf image — the preview URL should start with `https://...supabase.co/storage/v1/object/public/leaf-uploads/...`
 
 ---
 
@@ -128,18 +279,22 @@ Use [`.env.example`](.env.example) as a template.
 
 ---
 
-## Environment variables reference
+## Environment variables reference (summary)
 
-| Variable | Description |
-|----------|-------------|
-| `DJANGO_SECRET_KEY` | Django secret (generate a strong value) |
-| `DEBUG` | Must be `False` in production |
-| `ALLOWED_HOSTS` | Comma-separated hosts (include `.vercel.app`) |
-| `SUPABASE_URL` | Supabase project URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server-side storage uploads |
-| `SUPABASE_STORAGE_BUCKET` | Bucket name (`leaf-uploads`) |
-| `HF_INFERENCE_URL` | HF Space base URL |
-| `HF_TOKEN` | HF token for private Spaces |
+| Variable | Where to get it | Where to put it |
+|----------|-----------------|-----------------|
+| `DJANGO_SECRET_KEY` | Generate a random string | Vercel env vars; local terminal / `.env` |
+| `DEBUG` | Use `False` (production) | Vercel env vars |
+| `ALLOWED_HOSTS` | Your Vercel app URL / domain | Vercel env vars |
+| `SUPABASE_URL` | Supabase → Settings → API → Project URL | Vercel + local (if testing uploads) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → API → **service_role** | Vercel + local (keep secret) |
+| `SUPABASE_STORAGE_BUCKET` | `leaf-uploads` from `supabase_setup.sql` | Vercel + local |
+| `HF_INFERENCE_URL` | HF Space page URL (base, no trailing `/`) | Vercel + local |
+| `HF_TOKEN` | huggingface.co/settings/tokens | Vercel + local (if Space/repo private) |
+| `HF_MODEL_REPO` | HF model repo after upload | Local only (optional) |
+| `HF_MODEL_FILE` | Weights filename in repo | Local only (optional) |
+
+Full details: [Step 4 — Environment variables](#step-4--environment-variables).
 
 ---
 
@@ -175,7 +330,19 @@ Add your domain in Vercel → **Domains**, then append it to `ALLOWED_HOSTS`.
 
 ### Local development
 
-Use full `requirements.txt` (includes torch) and a local `.pth` file. See root `commands.txt` and HF guide.
+Copy [`deploy/vercel/.env.example`](../vercel/.env.example) to **`website/.env`** and fill in your Supabase + HF values. Django loads `website/.env` automatically on startup.
+
+```bash
+cd website
+copy deploy\vercel\.env.example .env   # Windows
+# edit .env with your keys
+pip install -r requirements.txt
+py manage.py runserver
+```
+
+Uploads go to **Supabase Storage** only (no local `media/` folder). If Supabase env vars are missing, the app shows a configuration error instead of saving locally.
+
+For local inference without Vercel, either set `HF_INFERENCE_URL` or keep a `.pth` in `website/base/`. See root `commands.txt` and the HF guide.
 
 ---
 
