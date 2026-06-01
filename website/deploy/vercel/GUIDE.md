@@ -77,16 +77,15 @@ If the Space or model repo is private, also set `HF_TOKEN`.
 ## Step 3 — Import project to Vercel
 
 1. Go to [vercel.com/new](https://vercel.com/new) → import your GitHub repo
-2. **Root Directory:** `website`
-3. **Framework Preset:** Other
-4. Copy settings from [`vercel.json`](vercel.json):
+2. **Framework Preset:** Other
+3. **Root Directory** — pick one (do not mix both configs):
 
-| Setting | Value |
-|---------|-------|
-| Install Command | `pip install -r requirements.txt` (slim; no torch) |
-| Build Command | `bash deploy/vercel/build.sh` |
+| Root Directory | Config file used | Install Command | Build Command |
+|----------------|------------------|-----------------|----------------|
+| **`website`** (recommended) | `website/vercel.json` | `pip install -r requirements.txt` | `bash deploy/vercel/build.sh` |
+| **`.`** (repo root) | repo `vercel.json` | `pip install -r website/requirements.txt` | `cd website && bash deploy/vercel/build.sh` |
 
-Alternatively, copy `deploy/vercel/vercel.json` to `website/vercel.json` (root of Vercel project).
+If build logs show paths like `/website/__pycache__/...`, your Root Directory is the **repo root** — use the repo-root row above or change Root Directory to `website` and clear custom install/build overrides in the Vercel dashboard.
 
 ---
 

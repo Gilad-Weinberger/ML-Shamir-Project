@@ -1,0 +1,16 @@
+website/evals/
+website/data/
+website/eval_images_test/
+website/eval_images_test_2/
+website/ml/
+website/**/__pycache__/
+**/*.pyc
+**/*.pth
+website/requirements-local.txt
+website/requirements-gpu.txt
+website/multiply-images.py
+website/multiply-images-5deg.py
+website/split-train-validation.py
+website/show_split.py
+website/train_model.py
+website/deploy/huggingface/
