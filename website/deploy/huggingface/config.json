@@ -1,0 +1,19 @@
+{
+  "model_type": "grape_leaf_regressor",
+  "task": "image-regression",
+  "variant": "5deg",
+  "input_size": [224, 224],
+  "input_channels": 3,
+  "output_range": [0, 100],
+  "architecture": {
+    "conv_layers": [32, 64, 128],
+    "fc_hidden": 256,
+    "output_dim": 1
+  },
+  "preprocessing": {
+    "resize": [224, 224],
+    "normalize": false
+  },
+  "weights_file": "grape_leaf_model_5deg.pth",
+  "framework": "pytorch"
+}

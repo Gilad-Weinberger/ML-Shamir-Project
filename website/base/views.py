@@ -6,14 +6,17 @@ import numpy as np
 import torch
 import torchvision.transforms as transforms
 from PIL import Image
+from io import BytesIO
+
 from django.apps import apps
+from django.core.files.base import ContentFile
 from django.core.files.storage import FileSystemStorage
 from django.shortcuts import render
-from io import BytesIO
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 
 from .forms import ImageUploadForm
+from .inference import is_remote_inference_configured, predict
 from .supabase_storage import is_supabase_configured, upload_image
 
 WEBSITE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -206,52 +209,38 @@ def Home(request):
         form = ImageUploadForm(request.POST, request.FILES)
         if form.is_valid():
             uploaded_file = request.FILES["image"]
-            uploaded_image_name = uploaded_file.name
             image_bytes = uploaded_file.read()
+            uploaded_image_name = uploaded_file.name
 
             if is_supabase_configured():
                 try:
                     buffer = BytesIO(image_bytes)
                     buffer.name = uploaded_file.name
-                    buffer.content_type = uploaded_file.content_type
-                    uploaded_image_url, _ = upload_image(buffer)
+                    buffer.content_type = uploaded_file.content_type or "image/jpeg"
+                    uploaded_image_url, _ = upload_image(buffer, uploaded_file.name)
                 except Exception as exc:
                     model_error = f"Failed to upload image to Supabase: {exc}"
-                    image_bytes = None
             else:
                 fs = FileSystemStorage()
-                buffer = BytesIO(image_bytes)
-                buffer.name = uploaded_file.name
-                filename = fs.save(uploaded_file.name, buffer)
+                filename = fs.save(uploaded_file.name, ContentFile(image_bytes))
                 uploaded_image_url = fs.url(filename)
 
-            app_config = apps.get_app_config("base")
-            model = app_config.model
+            if model_error is None:
+                app_config = apps.get_app_config("base")
+                model = app_config.model
 
-            if model is None and model_error is None:
-                model_error = (
-                    "No trained model is loaded. Train with "
-                    "'python train_model.py' locally or in Google Colab, "
-                    "place the .pth file in website/base/, or set HF_MODEL_REPO."
-                )
-            elif image_bytes is not None and model is not None:
-                pil_image = Image.open(BytesIO(image_bytes)).convert("RGB")
-                transform = transforms.Compose([
-                    transforms.Resize((224, 224)),
-                    transforms.ToTensor(),
-                ])
-                image_tensor = transform(pil_image).unsqueeze(0)
-
-                device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-                image_tensor = image_tensor.to(device)
-
-                model.eval()
-                with torch.no_grad():
-                    output = model(image_tensor)
-                    predicted_percentage = output.item()
-
-                predicted_percentage = max(0, min(100, predicted_percentage))
-                prediction = round(predicted_percentage, 1)
+                if model is None and not is_remote_inference_configured():
+                    model_error = (
+                        "No trained model is loaded. Train with "
+                        "'python train_model.py --variant 5deg', place the .pth file "
+                        "in website/base/, set HF_MODEL_REPO to download from Hugging Face, "
+                        "or set HF_INFERENCE_URL to use a Hugging Face Space."
+                    )
+                else:
+                    try:
+                        prediction = predict(image_bytes, model=model)
+                    except Exception as exc:
+                        model_error = f"Prediction failed: {exc}"
     else:
         form = ImageUploadForm()
 

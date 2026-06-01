@@ -77,7 +77,6 @@ then run the website regularly.
 If the model file is missing but images still exist, train the model separately:
   py manage.py train_model
   python train_model.py --variant 5deg --device auto --epochs 60 --batch-size 64
-Or use Google Colab GPU training — see CLOUD_TRAINING.md and colab/train_grape_leaf.ipynb.
 Django no longer trains on runserver; it only loads an existing .pth file.
 
 Both the original and 5-degree models use the same training method:
@@ -119,29 +118,6 @@ python split-train-validation.py --rebalance
 This moves everything from train/, validation/, and test/ back to the dataset root,
 then re-splits all images into train/validation/test again.
 After rebalancing, retrain the model because the training set changed.
-
-
-**TRAIN ON GOOGLE COLAB (FREE T4 GPU)**
-
-Use this to train the 5deg model (or other variants) without waiting hours on CPU.
-
-Local prep:
-1. Set MODEL_VARIANT = "5deg" in model_config.py
-2. Run split-train-validation.py if train/validation/test folders do not exist
-3. Zip data/final_images_5deg/ -> final_images_5deg.zip
-4. Zip website/ml/ -> ml.zip
-
-On Colab:
-1. Upload colab/train_grape_leaf.ipynb to colab.research.google.com
-2. Runtime -> Change runtime type -> T4 GPU
-3. Run all cells (upload dataset zip, upload train_model.py + model_config.py + ml.zip, install deps, train, download .pth)
-
-Back locally:
-1. Place downloaded .pth in website/base/
-2. py manage.py runserver
-3. py manage.py evaluate_model
-
-Full guide: CLOUD_TRAINING.md
 
 
 **TRAIN LOCALLY (CLI)**
@@ -294,7 +270,6 @@ py manage.py runserver
 
 If base/grape_leaf_model_5deg.pth does not exist yet, train it with:
 python train_model.py --variant 5deg
-Or use Google Colab — see CLOUD_TRAINING.md.
 
 To go back to the original/current model:
 1. Open model_config.py.

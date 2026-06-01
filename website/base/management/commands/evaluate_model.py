@@ -29,8 +29,8 @@ class Command(BaseCommand):
         if model is None:
             self.stderr.write(
                 self.style.ERROR(
-                    "No model is loaded. Train with 'python train_model.py' "
-                    "or download weights from Google Colab, then place the .pth in website/base/."
+                    "No model is loaded. Train with 'python train_model.py', "
+                    "then place the .pth in website/base/."
                 )
             )
             return
