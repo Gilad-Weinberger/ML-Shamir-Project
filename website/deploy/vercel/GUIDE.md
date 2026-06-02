@@ -28,9 +28,10 @@ Complete the [Hugging Face guide](../huggingface/GUIDE.md) first so `HF_INFERENC
 ## Step 1 — Supabase project & storage bucket
 
 1. Create a project at [supabase.com/dashboard](https://supabase.com/dashboard)
-2. Open **Database → Extensions** → enable **pg_cron**
+2. Open **Database → Extensions** → enable **pg_cron**, **pg_net**, and **http**
 3. Open **SQL Editor** → **New query**
 4. Paste and run [`supabase_setup.sql`](supabase_setup.sql)
+5. In the same file, **uncomment** the `vault.create_secret` block, replace placeholders with your **Project URL** and **service_role** key, and run that block once
 
 This creates:
 
@@ -38,10 +39,11 @@ This creates:
 |------|--------|
 | **Bucket** | `leaf-uploads` — **public** read for preview URLs |
 | **File types** | JPEG, PNG, WebP, GIF (max 10 MB) |
-| **Cron job** | `purge-leaf-uploads-every-48h` — deletes **all** images in the bucket every **48 hours** (00:00 UTC on odd calendar days: 1st, 3rd, 5th, …) |
+| **Cron job** | `purge-leaf-uploads-every-48h` — deletes **all** images via the **Storage API** every **48 hours** (00:00 UTC on odd calendar days: 1st, 3rd, 5th, …) |
+| **Vault** | `supabase_project_url` + `supabase_service_role_key` — required for the purge function (never commit real keys) |
 
-5. Confirm bucket `leaf-uploads` exists under **Storage**
-6. Confirm cron job under **Database → Cron** (or run):
+6. Confirm bucket `leaf-uploads` exists under **Storage**
+7. Confirm cron job under **Database → Cron** (or run):
 
 ```sql
 select jobid, jobname, schedule, command
@@ -49,7 +51,7 @@ from cron.job
 where jobname = 'purge-leaf-uploads-every-48h';
 ```
 
-To add the cron job later without re-running the full setup, use [`supabase_cron_cleanup.sql`](supabase_cron_cleanup.sql).
+To add or reset only the cron job (after Vault + purge function exist), use [`supabase_cron_cleanup.sql`](supabase_cron_cleanup.sql). To recreate only the purge function, use [`supabase_purge_function.sql`](supabase_purge_function.sql).
 
 Copy from **Project Settings → API**:
 
@@ -310,13 +312,15 @@ Full details: [Step 4 — Environment variables](#step-4--environment-variables)
 
 Uploaded leaf previews are **temporary**. A Supabase **pg_cron** job deletes **every file** in `leaf-uploads` on a 48-hour cycle. After a purge, old preview URLs in the browser will break — that is expected.
 
-To run a one-off purge manually:
+To run a one-off purge manually (uses Storage API — do **not** use `DELETE FROM storage.objects`):
 
 ```sql
-delete from storage.objects where bucket_id = 'leaf-uploads';
+select public.purge_leaf_uploads_storage();
 ```
 
 To change the schedule, edit the cron expression in `supabase_setup.sql` and re-run [`supabase_cron_cleanup.sql`](supabase_cron_cleanup.sql).
+
+If cron logs **"Direct deletion from storage tables is not allowed"**, your job still uses the old SQL `DELETE`. Run [`supabase_purge_function.sql`](supabase_purge_function.sql), add Vault secrets, then [`supabase_cron_cleanup.sql`](supabase_cron_cleanup.sql).
 
 ### No persistent disk on Vercel
 
@@ -359,7 +363,9 @@ For local inference without Vercel, either set `HF_INFERENCE_URL` or keep a `.pt
 | `DisallowedHost` | Add your Vercel URL/domain to `ALLOWED_HOSTS` |
 | Static CSS missing | Redeploy after `CompressedStaticFilesStorage` in settings; confirm `/static/css/base/home.css` loads in browser Network tab |
 | `Invalid API key` on upload | **Supabase** error → fix `SUPABASE_SERVICE_ROLE_KEY` (JWT `eyJ...`, not `hf_`). **HF** error → remove `HF_TOKEN` if Space is public, or set a valid Read `hf_` token |
-| Upload fails | Verify Supabase env vars and run `supabase_setup.sql`; enable **pg_cron** extension |
+| Upload fails | Verify Supabase env vars and run `supabase_setup.sql`; enable **pg_cron**, **pg_net**, and **http** |
+| Cron: "Direct deletion from storage tables is not allowed" | Re-run `supabase_purge_function.sql` + Vault secrets + `supabase_cron_cleanup.sql` (Supabase blocks raw `DELETE` on `storage.objects`) |
+| Cron: missing Vault secrets | Run the `vault.create_secret` block in `supabase_setup.sql` with your Project URL and service_role key |
 | Preview URL broken after 2 days | Expected — cron purges all leaf uploads every 48 hours |
 | No prediction / timeout | Wake HF Space in browser; check `HF_INFERENCE_URL` |
 | 401 from HF | Set `HF_TOKEN` in Vercel env |
@@ -386,8 +392,9 @@ For local inference without Vercel, either set `HF_INFERENCE_URL` or keep a `.pt
 | `GUIDE.md` | This guide |
 | `website/.env.example` | Local env template (copy to `website/.env.local`) |
 | `deploy/vercel/.env.example` | Same keys, Vercel-oriented comments |
-| `supabase_setup.sql` | Public bucket, policies, 48h purge cron |
-| `supabase_cron_cleanup.sql` | Cron job only (if setup already ran) |
+| `supabase_setup.sql` | Public bucket, policies, purge function, 48h purge cron |
+| `supabase_purge_function.sql` | Purge function + Vault template (if setup already ran) |
+| `supabase_cron_cleanup.sql` | Reschedule cron only (after purge function + Vault exist) |
 | `requirements-vercel.txt` | Mirror of root `requirements.txt` (Vercel / production) |
 | `requirements-local.txt` | Full local stack (torch, matplotlib, training) |
 | `build.sh` | Install + collectstatic |

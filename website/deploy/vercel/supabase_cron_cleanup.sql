@@ -1,5 +1,10 @@
--- Optional: run this file alone if you already ran supabase_setup.sql
--- and only need to add or reset the 48-hour purge cron job.
+-- Reset the 48-hour leaf-uploads purge cron (Storage API, not direct SQL DELETE).
+-- Run in Supabase Dashboard → SQL Editor.
+--
+-- Prerequisites:
+--   1. pg_cron enabled (Database → Extensions)
+--   2. pg_net enabled (Database → Extensions)
+--   3. Vault secrets created — run supabase_purge_function.sql first (includes vault + function)
 
 create extension if not exists pg_cron with schema extensions;
 
@@ -10,8 +15,11 @@ where jobname = 'purge-leaf-uploads-every-48h';
 select cron.schedule(
   'purge-leaf-uploads-every-48h',
   '0 0 1-31/2 * *',
-  $$
-    delete from storage.objects
-    where bucket_id = 'leaf-uploads';
-  $$
+  $$select public.purge_leaf_uploads_storage();$$
 );
+
+-- Verify:
+-- select jobid, jobname, schedule, command from cron.job where jobname = 'purge-leaf-uploads-every-48h';
+
+-- Manual test (deletes all current leaf uploads via Storage API):
+-- select public.purge_leaf_uploads_storage();
